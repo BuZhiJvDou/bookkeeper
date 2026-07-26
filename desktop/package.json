@@ -1,0 +1,49 @@
+{
+  "name": "bookkeeper-desktop",
+  "version": "1.0.0",
+  "description": "记账单桌面客户端",
+  "main": "src/main/index.js",
+  "scripts": {
+    "dev": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "dayjs": "^1.11.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.10.3",
+    "zustand": "^4.4.7"
+  },
+  "build": {
+    "appId": "com.bookkeeper.desktop",
+    "productName": "记账单",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
