@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SettingsScreen(
     onNavigateToCategories: () -> Unit,
-    onNavigateToAccounts: () -> Unit
+    onNavigateToAccounts: () -> Unit,
+    onNavigateToBudgets: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -55,6 +56,13 @@ fun SettingsScreen(
                 title = "账户管理",
                 subtitle = "管理你的现金、银行卡等账户",
                 onClick = onNavigateToAccounts
+            )
+
+            SettingsItem(
+                icon = Icons.Default.Savings,
+                title = "预算管理",
+                subtitle = "设置月/周/年预算，控制开支",
+                onClick = onNavigateToBudgets
             )
 
             Spacer(modifier = Modifier.height(8.dp))

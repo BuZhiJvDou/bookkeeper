@@ -19,6 +19,7 @@ import com.bookkeeper.ui.statistics.StatisticsScreen
 import com.bookkeeper.ui.settings.SettingsScreen
 import com.bookkeeper.ui.category.CategoryScreen
 import com.bookkeeper.ui.account.AccountScreen
+import com.bookkeeper.ui.budget.BudgetScreen
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Home : Screen("home", "首页", Icons.Default.Home)
@@ -34,6 +35,7 @@ sealed class SubScreen(val route: String) {
     data object TransactionList : SubScreen("transaction_list")
     data object Categories : SubScreen("categories")
     data object Accounts : SubScreen("accounts")
+    data object Budgets : SubScreen("budgets")
 }
 
 val bottomNavItems = listOf(Screen.Home, Screen.Statistics, Screen.Settings)
@@ -86,7 +88,8 @@ fun BookkeeperNavHost() {
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateToCategories = { navController.navigate(SubScreen.Categories.route) },
-                    onNavigateToAccounts = { navController.navigate(SubScreen.Accounts.route) }
+                    onNavigateToAccounts = { navController.navigate(SubScreen.Accounts.route) },
+                    onNavigateToBudgets = { navController.navigate(SubScreen.Budgets.route) }
                 )
             }
             composable(SubScreen.AddTransaction.route) {
@@ -107,6 +110,11 @@ fun BookkeeperNavHost() {
             }
             composable(SubScreen.Accounts.route) {
                 AccountScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(SubScreen.Budgets.route) {
+                BudgetScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

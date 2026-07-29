@@ -14,6 +14,12 @@
   - 超支预警显示超出金额，接近上限提示剩余
   - 预算新增/编辑/删除（编辑弹窗 + 删除确认）
   - 数据导入导出包含预算（兼容旧版备份）
+- **预算管理功能（Android 端对齐）**
+  - `BudgetRepository`：预算 CRUD + 当期已用金额统计（月/周/年周期，与桌面逻辑一致）
+  - `BudgetViewModel`：组合 budgets/categories/transactions 三条 Flow，记账后进度实时刷新
+  - `BudgetScreen`：预算列表 + 进度条三色预警 + 新增/编辑对话框（金额/周期 Chip/分类下拉）
+  - 设置页新增「预算管理」入口，导航接线完成
+  - 复用现有 BudgetEntity / BudgetDao / DI（已就绪）
 - **数据库层**
   - `db.js` 新增 budgets CRUD：getAllBudgets / addBudget / updateBudget / deleteBudget
   - `currentPeriodRange()` 计算周期起止时间戳
