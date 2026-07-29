@@ -107,6 +107,23 @@ ipcMain.handle('accounts:updateBalance', (event, id, amount) => {
   return db.updateAccountBalance(id, amount);
 });
 
+// 预算
+ipcMain.handle('budgets:getAll', () => {
+  return db.getAllBudgets();
+});
+
+ipcMain.handle('budgets:add', (event, budget) => {
+  return db.addBudget(budget);
+});
+
+ipcMain.handle('budgets:update', (event, id, budget) => {
+  return db.updateBudget(id, budget);
+});
+
+ipcMain.handle('budgets:delete', (event, id) => {
+  return db.deleteBudget(id);
+});
+
 // 导入导出
 ipcMain.handle('data:export', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {

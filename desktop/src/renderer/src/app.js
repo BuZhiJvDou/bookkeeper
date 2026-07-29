@@ -142,6 +142,13 @@ const LANG = {
     prevPeriod: '上一周期', comparedToPrev: '较上期',
     topCategories: '支出 TOP 5 分类', topExpenses: '最大支出 TOP 5',
     noTxInPeriod: '该周期暂无交易记录', savingRate: '储蓄率',
+    budget: '预算', budgetMgmt: '预算管理', addBudget: '新增预算', editBudget: '编辑预算',
+    budgetTotal: '总预算', budgetCategory: '分类预算', budgetAmount: '预算金额',
+    budgetPeriod: '周期', periodMonthly: '每月', periodWeekly: '每周', periodYearly: '每年',
+    budgetUsed: '已用', budgetLeft: '剩余', budgetOver: '超支',
+    noBudget: '还没有预算，点击右上角新增，控制你的开支',
+    budgetExceeded: '已超支！', budgetWarning: '接近预算上限',
+    selectCategory: '选择分类（留空为总预算）', budgetDeleteConfirm: '确定删除此预算？',
   },
   en: {
     appName: 'Bookkeeper',
@@ -175,6 +182,13 @@ const LANG = {
     prevPeriod: 'Previous', comparedToPrev: 'vs Previous',
     topCategories: 'Top 5 Categories', topExpenses: 'Top 5 Expenses',
     noTxInPeriod: 'No transactions in this period', savingRate: 'Saving Rate',
+    budget: 'Budget', budgetMgmt: 'Budgets', addBudget: 'Add Budget', editBudget: 'Edit Budget',
+    budgetTotal: 'Total Budget', budgetCategory: 'Category Budget', budgetAmount: 'Budget Amount',
+    budgetPeriod: 'Period', periodMonthly: 'Monthly', periodWeekly: 'Weekly', periodYearly: 'Yearly',
+    budgetUsed: 'Used', budgetLeft: 'Left', budgetOver: 'Over',
+    noBudget: 'No budgets yet. Tap + to control your spending.',
+    budgetExceeded: 'Exceeded!', budgetWarning: 'Near limit',
+    selectCategory: 'Select category (empty = total budget)', budgetDeleteConfirm: 'Delete this budget?',
   },
 };
 
@@ -264,7 +278,7 @@ function getPeriodRange(period) {
 
 const store = {
   // --- 数据 ---
-  transactions: [], categories: [], accounts: [],
+  transactions: [], categories: [], accounts: [], budgets: [],
   // --- UI 状态 ---
   currentPage: 'home', confirmDialog: null,
   // --- 用户设置（持久化到 localStorage）---
@@ -284,10 +298,15 @@ const store = {
     this.transactions = await window.api.transactions.getAll();
     this.categories = await window.api.categories.getAll();
     this.accounts = await window.api.accounts.getAll();
+    this.budgets = await window.api.budgets.getAll();
     this.notify();
   },
   async addTransaction(t) { await window.api.transactions.add(t); await this.loadAll(); },
   async deleteTransaction(id) { await window.api.transactions.delete(id); await this.loadAll(); },
+  // --- 预算操作 ---
+  async addBudget(b) { await window.api.budgets.add(b); await this.loadAll(); },
+  async updateBudget(id, b) { await window.api.budgets.update(id, b); await this.loadAll(); },
+  async deleteBudget(id) { await window.api.budgets.delete(id); await this.loadAll(); },
 
   // --- 导航 ---
   navigate(page) { this.currentPage = page; this.notify(); },
@@ -449,6 +468,7 @@ function App() {
           s.currentPage === 'home' && h(HomePage, null),
           s.currentPage === 'transactions' && h(TransactionsPage, null),
           s.currentPage === 'summary' && h(SummaryPage, null),
+          s.currentPage === 'budget' && h(BudgetPage, null),
           s.currentPage === 'statistics' && h(StatisticsPage, null),
           s.currentPage === 'calculator' && h(CalculatorPage, null),
           s.currentPage === 'settings' && h(SettingsPage, null),
@@ -485,6 +505,7 @@ function Sidebar() {
     { id: 'home', label: t('home'), icon: '🏠' },
     { id: 'transactions', label: t('transactions'), icon: '📋' },
     { id: 'summary', label: t('summary'), icon: '📝' },
+    { id: 'budget', label: t('budget'), icon: '🎯' },
     { id: 'statistics', label: t('statistics'), icon: '📊' },
     { id: 'calculator', label: t('calculator'), icon: '🧮' },
     { id: 'settings', label: t('settings'), icon: '⚙️' },
@@ -1004,6 +1025,129 @@ function CalculatorPage() {
         h('div', { style: { fontSize: 13 } }, '示例：余额 8 + 余额包 3 + 小荷包 7.11 = ¥18.11')
       )
     )])
+  );
+}
+
+// ============================================================================
+// 预算管理页 —— 设置预算 + 进度条 + 超支预警
+// ============================================================================
+function BudgetPage() {
+  const s = useStore();
+  const [editing, setEditing] = useState(null); // null=不显示表单, {}=新增, {...}=编辑
+
+  const PERIOD_LABEL = { MONTHLY: t('periodMonthly'), WEEKLY: t('periodWeekly'), YEARLY: t('periodYearly') };
+
+  // 预算卡片列表（每条含进度条 + 超支/预警状态）
+  const budgetCards = s.budgets.length === 0
+    ? [h('div.card', { style: { textAlign: 'center', padding: '48px 0', color: 'var(--text-hint)' } },
+        h('div', { style: { fontSize: 40, marginBottom: 16 } }, '🎯'),
+        h('div', null, t('noBudget')))]
+    : s.budgets.map(b => {
+        const pct = b.amount > 0 ? Math.min(b.used / b.amount, 1) : 0;
+        const rawPct = b.amount > 0 ? b.used / b.amount : 0;
+        const over = b.used > b.amount;                 // 超支
+        const warning = !over && rawPct >= 0.8;          // 接近上限（≥80%）
+        const left = b.amount - b.used;
+        const barColor = over ? '#F44336' : warning ? '#FF9800' : '#4CAF50';
+        const title = b.category_id == null ? t('budgetTotal') : (b.category_name || t('budgetCategory'));
+
+        return h('div.card', { key: b.id, style: { marginBottom: 12 } },
+          // 头部：标题 + 周期标签 + 操作按钮
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              h('span', { style: { fontSize: 16, fontWeight: 600, color: '#333' } }, title),
+              h('span', { style: { fontSize: 12, padding: '2px 8px', borderRadius: 10, background: 'rgba(108,99,255,0.1)', color: '#6C63FF' } }, PERIOD_LABEL[b.period] || b.period)
+            ),
+            h('div', { style: { display: 'flex', gap: 6 } },
+              h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888', padding: '2px 6px' }, onClick: () => setEditing(b) }, '✏️'),
+              h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888', padding: '2px 6px' }, onClick: () => { if (confirm(t('budgetDeleteConfirm'))) store.deleteBudget(b.id); } }, '🗑')
+            )
+          ),
+          // 进度条
+          h('div', { style: { height: 10, borderRadius: 5, background: 'rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: 8 } },
+            h('div', { style: { height: '100%', width: `${pct * 100}%`, background: barColor, borderRadius: 5, transition: 'width 0.3s' } })
+          ),
+          // 数字行：已用 / 预算 + 剩余/超支
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555' } },
+            h('span', null, `${t('budgetUsed')} ¥${fmtMoney(b.used)} / ¥${fmtMoney(b.amount)}`),
+            over
+              ? h('span', { style: { color: '#F44336', fontWeight: 600 } }, `⚠️ ${t('budgetExceeded')} ¥${fmtMoney(-left)}`)
+              : warning
+                ? h('span', { style: { color: '#FF9800', fontWeight: 600 } }, `${t('budgetWarning')} · ${t('budgetLeft')} ¥${fmtMoney(left)}`)
+                : h('span', { style: { color: '#4CAF50' } }, `${t('budgetLeft')} ¥${fmtMoney(left)}`)
+          )
+        );
+      });
+
+  return h(React.Fragment, null,
+    // 标题栏 + 新增按钮
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 } },
+      h('h2', null, t('budgetMgmt')),
+      h('button.btn.btn-primary', { onClick: () => setEditing({}) }, `+ ${t('addBudget')}`)
+    ),
+    ...budgetCards,
+    // 编辑/新增表单弹窗
+    editing !== null && h(BudgetForm, { budget: editing, onClose: () => setEditing(null) })
+  );
+}
+
+// 预算新增/编辑表单弹窗
+function BudgetForm({ budget, onClose }) {
+  const s = useStore();
+  const isEdit = budget && budget.id != null;
+  const [amount, setAmount] = useState(isEdit ? (budget.amount / 100).toString() : '');
+  const [period, setPeriod] = useState(isEdit ? budget.period : 'MONTHLY');
+  const [categoryId, setCategoryId] = useState(isEdit ? (budget.category_id || '') : '');
+
+  // 仅支出分类可设预算
+  const expenseCats = s.categories.filter(c => c.type === 'EXPENSE');
+
+  const handleSave = async () => {
+    const cents = Math.round(parseFloat(amount.replace(',', '.')) * 100);
+    if (!cents || cents <= 0) return;
+    const payload = { amount: cents, period, categoryId: categoryId || null };
+    if (isEdit) await store.updateBudget(budget.id, payload);
+    else await store.addBudget(payload);
+    onClose();
+  };
+
+  const periods = [['MONTHLY', t('periodMonthly')], ['WEEKLY', t('periodWeekly')], ['YEARLY', t('periodYearly')]];
+
+  return h('div.modal-overlay', { onClick: e => e.target === e.currentTarget && onClose() },
+    h('div.modal', { style: { maxWidth: 400 } },
+      h('div.modal-title', null, isEdit ? t('editBudget') : t('addBudget')),
+      // 金额
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('budgetAmount')),
+        h('input.input', { type: 'text', inputMode: 'decimal', value: amount, placeholder: '0.00', autoFocus: true,
+          onChange: e => setAmount(e.target.value.replace(/[^0-9.,]/g, '')),
+          onKeyDown: e => e.key === 'Enter' && handleSave() })
+      ),
+      // 周期选择
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('budgetPeriod')),
+        h('div', { style: { display: 'flex', gap: 8 } },
+          ...periods.map(([val, label]) => h('button', {
+            key: val,
+            style: { flex: 1, padding: '8px 0', borderRadius: 8, border: period === val ? '2px solid #6C63FF' : '1px solid var(--border)', background: period === val ? 'rgba(108,99,255,0.08)' : '#fff', color: period === val ? '#6C63FF' : '#555', cursor: 'pointer', fontWeight: period === val ? 600 : 400 },
+            onClick: () => setPeriod(val)
+          }, label))
+        )
+      ),
+      // 分类选择（留空为总预算）
+      h('div', { style: { marginBottom: 20 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('selectCategory')),
+        h('select.input', { value: categoryId, onChange: e => setCategoryId(e.target.value) },
+          h('option', { value: '' }, `— ${t('budgetTotal')} —`),
+          ...expenseCats.map(c => h('option', { key: c.id, value: c.id }, c.name))
+        )
+      ),
+      // 操作按钮
+      h('div.modal-actions', null,
+        h('button.btn.btn-outline', { onClick: onClose }, t('cancel')),
+        h('button.btn.btn-primary', { onClick: handleSave }, t('save'))
+      )
+    )
   );
 }
 

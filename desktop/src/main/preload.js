@@ -23,6 +23,12 @@ contextBridge.exposeInMainWorld('api', {
     updateBalance: (id, amount) =>
       ipcRenderer.invoke('accounts:updateBalance', id, amount),
   },
+  budgets: {
+    getAll: () => ipcRenderer.invoke('budgets:getAll'),
+    add: (budget) => ipcRenderer.invoke('budgets:add', budget),
+    update: (id, budget) => ipcRenderer.invoke('budgets:update', id, budget),
+    delete: (id) => ipcRenderer.invoke('budgets:delete', id),
+  },
   data: {
     export: () => ipcRenderer.invoke('data:export'),
     import: () => ipcRenderer.invoke('data:import'),
