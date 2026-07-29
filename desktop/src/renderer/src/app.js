@@ -153,6 +153,7 @@ const LANG = {
     transferAmount: '转账金额', transferNote: '备注（可选）', transferBtn: '转账',
     transferSuccess: '转账成功！', sameAccountErr: '转出和转入账户不能相同',
     transferRecord: '转账', transferTo: '转到',
+    pieChart: '支出分类占比', trendChart: '收支趋势', incomeLegend: '收入', expenseLegend: '支出',
   },
   en: {
     appName: 'Bookkeeper',
@@ -197,6 +198,7 @@ const LANG = {
     transferAmount: 'Amount', transferNote: 'Note (optional)', transferBtn: 'Transfer',
     transferSuccess: 'Transfer done!', sameAccountErr: 'From and To must differ',
     transferRecord: 'Transfer', transferTo: 'to',
+    pieChart: 'Expense by Category', trendChart: 'Income/Expense Trend', incomeLegend: 'Income', expenseLegend: 'Expense',
   },
 };
 
@@ -1008,6 +1010,96 @@ function SummaryPage() {
   );
 }
 
+// ============================================================================
+// 图表组件（纯 SVG，无第三方库）
+// ============================================================================
+
+/**
+ * 环形饼图（分类占比）
+ * @param {Array<{label,value,color}>} data - 各扇区数据
+ * @param {number} size - 直径像素
+ */
+function DonutChart({ data, size = 180 }) {
+  const total = data.reduce((a, d) => a + d.value, 0);
+  if (total <= 0) return h('div.empty-state', null, t('noData'));
+
+  const r = size / 2;          // 外半径
+  const inner = r * 0.6;       // 内半径（环形）
+  const cx = r, cy = r;
+  let angle = -Math.PI / 2;    // 从 12 点方向开始
+
+  // 计算每个扇区路径
+  const arcs = data.map((d, i) => {
+    const frac = d.value / total;
+    const start = angle;
+    const end = angle + frac * Math.PI * 2;
+    angle = end;
+    const large = frac > 0.5 ? 1 : 0;
+    const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start);
+    const x2 = cx + r * Math.cos(end), y2 = cy + r * Math.sin(end);
+    const ix1 = cx + inner * Math.cos(end), iy1 = cy + inner * Math.sin(end);
+    const ix2 = cx + inner * Math.cos(start), iy2 = cy + inner * Math.sin(start);
+    const path = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${inner} ${inner} 0 ${large} 0 ${ix2} ${iy2} Z`;
+    return h('path', { key: i, d: path, fill: d.color, stroke: '#fff', strokeWidth: 1 });
+  });
+
+  return h('div', { style: { display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' } },
+    // SVG 图形
+    h('svg', { width: size, height: size, viewBox: `0 0 ${size} ${size}` },
+      ...arcs,
+      // 中心总额
+      h('text', { x: cx, y: cy - 6, textAnchor: 'middle', fontSize: 12, fill: '#999' }, t('expense')),
+      h('text', { x: cx, y: cy + 14, textAnchor: 'middle', fontSize: 16, fontWeight: 700, fill: '#333' }, `¥${fmtMoney(total)}`)
+    ),
+    // 图例
+    h('div', { style: { flex: 1, minWidth: 140 } },
+      ...data.map((d, i) => h('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 } },
+        h('span', { style: { width: 12, height: 12, borderRadius: 3, background: d.color, flexShrink: 0 } }),
+        h('span', { style: { flex: 1, color: '#555' } }, d.label),
+        h('span', { style: { color: '#999' } }, `${((d.value / total) * 100).toFixed(1)}%`)
+      ))
+    )
+  );
+}
+
+/**
+ * 收支趋势折线图（双线：收入绿 / 支出红）
+ * @param {Array<{label,income,expense}>} data
+ */
+function TrendLineChart({ data, height = 160 }) {
+  if (!data || data.length === 0) return h('div.empty-state', null, t('noData'));
+  const W = 320, H = height, pad = 28;
+  const maxV = Math.max(...data.flatMap(d => [d.income, d.expense]), 1);
+  const stepX = (W - pad * 2) / Math.max(data.length - 1, 1);
+  const scaleY = (v) => H - pad - (v / maxV) * (H - pad * 2);
+
+  // 生成折线 points 字符串
+  const line = (key) => data.map((d, i) => `${pad + i * stepX},${scaleY(d[key])}`).join(' ');
+
+  return h('div', null,
+    h('svg', { width: '100%', height: H, viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' },
+      // 基准横线
+      h('line', { x1: pad, y1: H - pad, x2: W - pad, y2: H - pad, stroke: '#eee', strokeWidth: 1 }),
+      // 收入线
+      h('polyline', { points: line('income'), fill: 'none', stroke: '#4CAF50', strokeWidth: 2, strokeLinejoin: 'round' }),
+      // 支出线
+      h('polyline', { points: line('expense'), fill: 'none', stroke: '#F44336', strokeWidth: 2, strokeLinejoin: 'round' }),
+      // 数据点
+      ...data.map((d, i) => h('circle', { key: 'i' + i, cx: pad + i * stepX, cy: scaleY(d.income), r: 2.5, fill: '#4CAF50' })),
+      ...data.map((d, i) => h('circle', { key: 'e' + i, cx: pad + i * stepX, cy: scaleY(d.expense), r: 2.5, fill: '#F44336' })),
+      // X 轴标签（最多显示首尾及中间几个）
+      ...data.map((d, i) => (i === 0 || i === data.length - 1 || i === Math.floor(data.length / 2))
+        ? h('text', { key: 'x' + i, x: pad + i * stepX, y: H - 8, textAnchor: 'middle', fontSize: 9, fill: '#999' }, d.label)
+        : null)
+    ),
+    // 图例
+    h('div', { style: { display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8, fontSize: 12 } },
+      h('span', { style: { display: 'flex', alignItems: 'center', gap: 4 } }, h('span', { style: { width: 12, height: 3, background: '#4CAF50', display: 'inline-block' } }), t('incomeLegend')),
+      h('span', { style: { display: 'flex', alignItems: 'center', gap: 4 } }, h('span', { style: { width: 12, height: 3, background: '#F44336', display: 'inline-block' } }), t('expenseLegend'))
+    )
+  );
+}
+
 // --- 统计页 ---
 function StatisticsPage() {
   const s = useStore();
@@ -1039,6 +1131,51 @@ function StatisticsPage() {
   filtered.filter(t => t.type === 'EXPENSE').forEach(t => { catTotals[t.category_id] = (catTotals[t.category_id] || 0) + t.amount; });
   const stats = Object.entries(catTotals).map(([id, amount]) => ({ cat: s.categories.find(c => c.id === parseInt(id)), amount, pct: totalExpense > 0 ? amount / totalExpense : 0 })).sort((a, b) => b.amount - a.amount);
 
+  // 饼图数据：Top 6 分类 + 其他合并
+  const pieData = useMemo(() => {
+    const top = stats.slice(0, 6).map(st => ({
+      label: st.cat?.name || '?',
+      value: st.amount / 100,
+      color: st.cat?.color || '#6C63FF',
+    }));
+    const restTotal = stats.slice(6).reduce((a, st) => a + st.amount, 0);
+    if (restTotal > 0) top.push({ label: t('other'), value: restTotal / 100, color: '#BDC3C7' });
+    return top;
+  }, [stats]);
+
+  // 趋势数据：按周期分桶（周=7天，月=按周分4段，年=12月）
+  const trendData = useMemo(() => {
+    const buckets = [];
+    if (period === 'week') {
+      // 近 7 天
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i);
+        const ds = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const de = ds + 86400000;
+        const txs = s.transactions.filter(t => t.date >= ds && t.date < de);
+        buckets.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, income: txs.filter(t => t.type === 'INCOME').reduce((a, t) => a + t.amount, 0) / 100, expense: txs.filter(t => t.type === 'EXPENSE').reduce((a, t) => a + t.amount, 0) / 100 });
+      }
+    } else if (period === 'month') {
+      // 本月按周分段
+      for (let w = 0; w < 5; w++) {
+        const ws = new Date(now.getFullYear(), now.getMonth(), 1 + w * 7).getTime();
+        const we = new Date(now.getFullYear(), now.getMonth(), 1 + (w + 1) * 7).getTime();
+        const txs = s.transactions.filter(t => t.date >= ws && t.date < we);
+        if (ws > now.getTime()) break;
+        buckets.push({ label: `W${w + 1}`, income: txs.filter(t => t.type === 'INCOME').reduce((a, t) => a + t.amount, 0) / 100, expense: txs.filter(t => t.type === 'EXPENSE').reduce((a, t) => a + t.amount, 0) / 100 });
+      }
+    } else {
+      // 本年 12 月
+      for (let m = 0; m < 12; m++) {
+        const ms = new Date(now.getFullYear(), m, 1).getTime();
+        const me = new Date(now.getFullYear(), m + 1, 1).getTime();
+        const txs = s.transactions.filter(t => t.date >= ms && t.date < me);
+        buckets.push({ label: `${m + 1}月`, income: txs.filter(t => t.type === 'INCOME').reduce((a, t) => a + t.amount, 0) / 100, expense: txs.filter(t => t.type === 'EXPENSE').reduce((a, t) => a + t.amount, 0) / 100 });
+      }
+    }
+    return buckets;
+  }, [s.transactions, period]);
+
   return h(React.Fragment, null,
     h('h2', { style: { marginBottom: 16 } }, t('statistics')),
     h('div.filter-row', null, ...[['week', t('thisWeek')], ['month', t('thisMonth')], ['year', t('thisYear')]].map(([p, lbl]) => h('button', { key: p, className: `filter-chip ${period === p ? 'active' : ''}`, onClick: () => setPeriod(p) }, lbl))),
@@ -1058,6 +1195,16 @@ function StatisticsPage() {
           (period !== 'year' || i % 30 === 0) && h('span', { style: { fontSize: 9, color: 'var(--text-hint)', position: 'absolute', bottom: 0, whiteSpace: 'nowrap' } }, d.label)
         ))
       )
+    ),
+    // 收支趋势折线图
+    h('div.card', { style: { marginBottom: 16 } },
+      h('div.card-title', { style: { marginBottom: 12 } }, t('trendChart')),
+      h(TrendLineChart, { data: trendData })
+    ),
+    // 支出分类占比饼图
+    h('div.card', { style: { marginBottom: 16 } },
+      h('div.card-title', { style: { marginBottom: 12 } }, t('pieChart')),
+      h(DonutChart, { data: pieData })
     ),
     // 分类排行
     h('h3', { style: { marginBottom: 12, fontSize: 16 } }, t('categoryRank')),
