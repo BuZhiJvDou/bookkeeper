@@ -21,6 +21,7 @@ import com.bookkeeper.ui.settings.SettingsScreen
 import com.bookkeeper.ui.category.CategoryScreen
 import com.bookkeeper.ui.account.AccountScreen
 import com.bookkeeper.ui.budget.BudgetScreen
+import com.bookkeeper.ui.recurring.RecurringScreen
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Home : Screen("home", "首页", Icons.Default.Home)
@@ -38,6 +39,7 @@ sealed class SubScreen(val route: String) {
     data object Accounts : SubScreen("accounts")
     data object Budgets : SubScreen("budgets")
     data object Transfer : SubScreen("transfer")
+    data object Recurring : SubScreen("recurring")
 }
 
 val bottomNavItems = listOf(Screen.Home, Screen.Statistics, Screen.Settings)
@@ -92,7 +94,8 @@ fun BookkeeperNavHost() {
                 SettingsScreen(
                     onNavigateToCategories = { navController.navigate(SubScreen.Categories.route) },
                     onNavigateToAccounts = { navController.navigate(SubScreen.Accounts.route) },
-                    onNavigateToBudgets = { navController.navigate(SubScreen.Budgets.route) }
+                    onNavigateToBudgets = { navController.navigate(SubScreen.Budgets.route) },
+                    onNavigateToRecurring = { navController.navigate(SubScreen.Recurring.route) }
                 )
             }
             composable(SubScreen.AddTransaction.route) {
@@ -123,6 +126,11 @@ fun BookkeeperNavHost() {
             }
             composable(SubScreen.Transfer.route) {
                 TransferScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(SubScreen.Recurring.route) {
+                RecurringScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

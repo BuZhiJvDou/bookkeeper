@@ -26,6 +26,7 @@ fun SettingsScreen(
     onNavigateToCategories: () -> Unit,
     onNavigateToAccounts: () -> Unit,
     onNavigateToBudgets: () -> Unit,
+    onNavigateToRecurring: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -123,6 +124,13 @@ fun SettingsScreen(
                 title = "预算管理",
                 subtitle = "设置月/周/年预算，控制开支",
                 onClick = onNavigateToBudgets
+            )
+
+            SettingsItem(
+                icon = Icons.Default.Autorenew,
+                title = "循环记账",
+                subtitle = "房租、工资等固定周期自动记账",
+                onClick = onNavigateToRecurring
             )
 
             Spacer(modifier = Modifier.height(8.dp))

@@ -10,9 +10,10 @@ import com.bookkeeper.data.local.entity.*
         TransactionEntity::class,
         CategoryEntity::class,
         AccountEntity::class,
-        BudgetEntity::class
+        BudgetEntity::class,
+        RecurringRuleEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,4 +21,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun accountDao(): AccountDao
     abstract fun budgetDao(): BudgetDao
+    abstract fun recurringRuleDao(): RecurringRuleDao
 }

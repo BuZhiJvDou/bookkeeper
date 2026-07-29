@@ -154,6 +154,10 @@ const LANG = {
     transferSuccess: '转账成功！', sameAccountErr: '转出和转入账户不能相同',
     transferRecord: '转账', transferTo: '转到',
     pieChart: '支出分类占比', trendChart: '收支趋势', incomeLegend: '收入', expenseLegend: '支出',
+    recurring: '循环记账', recurringMgmt: '循环记账管理', addRecurring: '新增循环', editRecurring: '编辑循环',
+    recurPeriodDaily: '每天', recurPeriodWeekly: '每周', recurPeriodMonthly: '每月',
+    nextRun: '下次记账', autoCreate: '自动记账', noRecurring: '还没有循环记账规则，如房租、工资等固定收支',
+    recurringDeleteConfirm: '确定删除此循环规则？', startDate: '开始日期', recurAmount: '金额',
   },
   en: {
     appName: 'Bookkeeper',
@@ -199,6 +203,10 @@ const LANG = {
     transferSuccess: 'Transfer done!', sameAccountErr: 'From and To must differ',
     transferRecord: 'Transfer', transferTo: 'to',
     pieChart: 'Expense by Category', trendChart: 'Income/Expense Trend', incomeLegend: 'Income', expenseLegend: 'Expense',
+    recurring: 'Recurring', recurringMgmt: 'Recurring', addRecurring: 'Add Recurring', editRecurring: 'Edit Recurring',
+    recurPeriodDaily: 'Daily', recurPeriodWeekly: 'Weekly', recurPeriodMonthly: 'Monthly',
+    nextRun: 'Next Run', autoCreate: 'Auto Create', noRecurring: 'No recurring rules yet (rent, salary, etc.)',
+    recurringDeleteConfirm: 'Delete this recurring rule?', startDate: 'Start Date', recurAmount: 'Amount',
   },
 };
 
@@ -288,7 +296,7 @@ function getPeriodRange(period) {
 
 const store = {
   // --- 数据 ---
-  transactions: [], categories: [], accounts: [], budgets: [],
+  transactions: [], categories: [], accounts: [], budgets: [], recurring: [],
   // --- UI 状态 ---
   currentPage: 'home', confirmDialog: null,
   // --- 用户设置（持久化到 localStorage）---
@@ -309,6 +317,7 @@ const store = {
     this.categories = await window.api.categories.getAll();
     this.accounts = await window.api.accounts.getAll();
     this.budgets = await window.api.budgets.getAll();
+    this.recurring = await window.api.recurring.getAll();
     this.notify();
   },
   async addTransaction(t) { await window.api.transactions.add(t); await this.loadAll(); },
@@ -319,6 +328,11 @@ const store = {
   async addBudget(b) { await window.api.budgets.add(b); await this.loadAll(); },
   async updateBudget(id, b) { await window.api.budgets.update(id, b); await this.loadAll(); },
   async deleteBudget(id) { await window.api.budgets.delete(id); await this.loadAll(); },
+
+  // --- 循环记账操作 ---
+  async addRecurring(r) { await window.api.recurring.add(r); await this.loadAll(); },
+  async updateRecurring(id, r) { await window.api.recurring.update(id, r); await this.loadAll(); },
+  async deleteRecurring(id) { await window.api.recurring.delete(id); await this.loadAll(); },
 
   // --- 导航 ---
   navigate(page) { this.currentPage = page; this.notify(); },
@@ -481,6 +495,7 @@ function App() {
           s.currentPage === 'transactions' && h(TransactionsPage, null),
           s.currentPage === 'summary' && h(SummaryPage, null),
           s.currentPage === 'budget' && h(BudgetPage, null),
+          s.currentPage === 'recurring' && h(RecurringPage, null),
           s.currentPage === 'statistics' && h(StatisticsPage, null),
           s.currentPage === 'calculator' && h(CalculatorPage, null),
           s.currentPage === 'settings' && h(SettingsPage, null),
@@ -518,6 +533,7 @@ function Sidebar() {
     { id: 'transactions', label: t('transactions'), icon: '📋' },
     { id: 'summary', label: t('summary'), icon: '📝' },
     { id: 'budget', label: t('budget'), icon: '🎯' },
+    { id: 'recurring', label: t('recurring'), icon: '🔁' },
     { id: 'statistics', label: t('statistics'), icon: '📊' },
     { id: 'calculator', label: t('calculator'), icon: '🧮' },
     { id: 'settings', label: t('settings'), icon: '⚙️' },
@@ -1384,6 +1400,145 @@ function BudgetForm({ budget, onClose }) {
         )
       ),
       // 操作按钮
+      h('div.modal-actions', null,
+        h('button.btn.btn-outline', { onClick: onClose }, t('cancel')),
+        h('button.btn.btn-primary', { onClick: handleSave }, t('save'))
+      )
+    )
+  );
+}
+
+// ============================================================================
+// 循环记账页 —— 固定周期自动记账（房租/工资等）
+// ============================================================================
+function RecurringPage() {
+  const s = useStore();
+  const [editing, setEditing] = useState(null);
+
+  const PERIOD_LABEL = { DAILY: t('recurPeriodDaily'), WEEKLY: t('recurPeriodWeekly'), MONTHLY: t('recurPeriodMonthly') };
+
+  // 循环规则卡片列表
+  const cards = s.recurring.length === 0
+    ? [h('div.card', { style: { textAlign: 'center', padding: '48px 0', color: 'var(--text-hint)' } },
+        h('div', { style: { fontSize: 40, marginBottom: 16 } }, '🔁'),
+        h('div', null, t('noRecurring')))]
+    : s.recurring.map(r => {
+        const isIncome = r.type === 'INCOME';
+        const nextDate = new Date(r.next_run);
+        const nextStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+        return h('div.card', { key: r.id, style: { marginBottom: 12 } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+              h('span', { style: { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: (r.category_color || '#6C63FF') + '20', color: r.category_color || '#6C63FF', fontWeight: 600 } }, r.category_name ? r.category_name[0] : '🔁'),
+              h('div', null,
+                h('div', { style: { fontSize: 15, fontWeight: 600, color: '#333' } }, r.note || r.category_name || t('recurring')),
+                h('div', { style: { fontSize: 12, color: '#999' } }, `${PERIOD_LABEL[r.period] || r.period} · ${r.account_name || ''}`)
+              )
+            ),
+            h('div', { style: { display: 'flex', gap: 6 } },
+              h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888', padding: '2px 6px' }, onClick: () => setEditing(r) }, '✏️'),
+              h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#888', padding: '2px 6px' }, onClick: () => { if (confirm(t('recurringDeleteConfirm'))) store.deleteRecurring(r.id); } }, '🗑')
+            )
+          ),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 13 } },
+            h('span', { style: { color: isIncome ? 'var(--income)' : 'var(--expense)', fontWeight: 700 } }, `${isIncome ? '+' : '-'}¥${fmtMoney(r.amount)}`),
+            h('span', { style: { color: '#666' } }, `${t('nextRun')}: ${nextStr}`)
+          )
+        );
+      });
+
+  return h(React.Fragment, null,
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 } },
+      h('h2', null, t('recurringMgmt')),
+      h('button.btn.btn-primary', { onClick: () => setEditing({}) }, `+ ${t('addRecurring')}`)
+    ),
+    ...cards,
+    editing !== null && h(RecurringForm, { rule: editing, onClose: () => setEditing(null) })
+  );
+}
+
+// 循环记账新增/编辑表单弹窗
+function RecurringForm({ rule, onClose }) {
+  const s = useStore();
+  const isEdit = rule && rule.id != null;
+  const [type, setType] = useState(isEdit ? rule.type : 'EXPENSE');
+  const [amount, setAmount] = useState(isEdit ? (rule.amount / 100).toString() : '');
+  const [period, setPeriod] = useState(isEdit ? rule.period : 'MONTHLY');
+  const [categoryId, setCategoryId] = useState(isEdit ? rule.category_id : '');
+  const [accountId, setAccountId] = useState(isEdit ? rule.account_id : (s.accounts[0]?.id || ''));
+  const [note, setNote] = useState(isEdit ? (rule.note || '') : '');
+  // 开始/下次日期，默认今天
+  const defaultDate = isEdit ? new Date(rule.next_run) : new Date();
+  const [startDate, setStartDate] = useState(`${defaultDate.getFullYear()}-${String(defaultDate.getMonth() + 1).padStart(2, '0')}-${String(defaultDate.getDate()).padStart(2, '0')}`);
+
+  // 按当前类型筛选分类
+  const cats = s.categories.filter(c => c.type === type);
+
+  const handleSave = async () => {
+    const cents = Math.round(parseFloat((amount || '').replace(',', '.')) * 100);
+    if (!cents || cents <= 0) return;
+    const catId = categoryId || cats[0]?.id;
+    if (!catId || !accountId) return;
+    const nextRun = new Date(startDate + 'T00:00:00').getTime();
+    const payload = { type, amount: cents, categoryId: Number(catId), accountId: Number(accountId), note: note || null, period, nextRun, autoCreate: true };
+    if (isEdit) await store.updateRecurring(rule.id, payload);
+    else await store.addRecurring(payload);
+    onClose();
+  };
+
+  const periods = [['DAILY', t('recurPeriodDaily')], ['WEEKLY', t('recurPeriodWeekly')], ['MONTHLY', t('recurPeriodMonthly')]];
+  const typeBtn = (active, color) => ({ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, background: active ? `var(--${color})` : `rgba(${color === 'expense' ? '244,67,54' : '76,175,80'},0.1)`, color: active ? '#fff' : `var(--${color})` });
+
+  return h('div.modal-overlay', { onClick: e => e.target === e.currentTarget && onClose() },
+    h('div.modal', { style: { maxWidth: 420 } },
+      h('div.modal-title', null, isEdit ? t('editRecurring') : t('addRecurring')),
+      // 收支类型
+      h('div', { style: { display: 'flex', gap: 8, marginBottom: 16 } },
+        h('button', { style: typeBtn(type === 'EXPENSE', 'expense'), onClick: () => { setType('EXPENSE'); setCategoryId(''); } }, t('expense')),
+        h('button', { style: typeBtn(type === 'INCOME', 'income'), onClick: () => { setType('INCOME'); setCategoryId(''); } }, t('income'))
+      ),
+      // 金额
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('recurAmount')),
+        h('input.input', { type: 'text', inputMode: 'decimal', value: amount, placeholder: '0.00', autoFocus: true,
+          onChange: e => setAmount(e.target.value.replace(/[^0-9.,]/g, '')),
+          onKeyDown: e => e.key === 'Enter' && handleSave() })
+      ),
+      // 分类
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('category')),
+        h('select.input', { value: categoryId, onChange: e => setCategoryId(e.target.value) },
+          ...cats.map(c => h('option', { key: c.id, value: c.id }, c.name))
+        )
+      ),
+      // 账户
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('account')),
+        h('select.input', { value: accountId, onChange: e => setAccountId(e.target.value) },
+          ...s.accounts.map(a => h('option', { key: a.id, value: a.id }, a.name))
+        )
+      ),
+      // 周期
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('budgetPeriod')),
+        h('div', { style: { display: 'flex', gap: 8 } },
+          ...periods.map(([val, label]) => h('button', {
+            key: val,
+            style: { flex: 1, padding: '8px 0', borderRadius: 8, border: period === val ? '2px solid #6C63FF' : '1px solid var(--border)', background: period === val ? 'rgba(108,99,255,0.08)' : '#fff', color: period === val ? '#6C63FF' : '#555', cursor: 'pointer', fontWeight: period === val ? 600 : 400 },
+            onClick: () => setPeriod(val)
+          }, label))
+        )
+      ),
+      // 开始/下次日期
+      h('div', { style: { marginBottom: 16 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('startDate')),
+        h('input.input', { type: 'date', value: startDate, onChange: e => setStartDate(e.target.value) })
+      ),
+      // 备注
+      h('div', { style: { marginBottom: 20 } },
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('transferNote')),
+        h('input.input', { type: 'text', value: note, onChange: e => setNote(e.target.value) })
+      ),
       h('div.modal-actions', null,
         h('button.btn.btn-outline', { onClick: onClose }, t('cancel')),
         h('button.btn.btn-primary', { onClick: handleSave }, t('save'))

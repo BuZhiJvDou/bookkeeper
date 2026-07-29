@@ -42,6 +42,14 @@ app.whenReady().then(() => {
   // 初始化数据库
   db.init();
 
+  // 处理到期的循环记账规则（自动补记错过的周期）
+  try {
+    const created = db.processRecurringRules();
+    if (created > 0) console.log(`[循环记账] 自动生成 ${created} 条交易`);
+  } catch (e) {
+    console.error('[循环记账] 处理失败:', e);
+  }
+
   createWindow();
 
   app.on('activate', () => {
@@ -126,6 +134,27 @@ ipcMain.handle('budgets:update', (event, id, budget) => {
 
 ipcMain.handle('budgets:delete', (event, id) => {
   return db.deleteBudget(id);
+});
+
+// 循环记账
+ipcMain.handle('recurring:getAll', () => {
+  return db.getAllRecurringRules();
+});
+
+ipcMain.handle('recurring:add', (event, rule) => {
+  return db.addRecurringRule(rule);
+});
+
+ipcMain.handle('recurring:update', (event, id, rule) => {
+  return db.updateRecurringRule(id, rule);
+});
+
+ipcMain.handle('recurring:delete', (event, id) => {
+  return db.deleteRecurringRule(id);
+});
+
+ipcMain.handle('recurring:process', () => {
+  return db.processRecurringRules();
 });
 
 // 导入导出

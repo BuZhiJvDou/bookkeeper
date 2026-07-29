@@ -81,6 +81,23 @@ function createTables() {
       FOREIGN KEY (category_id) REFERENCES categories(id)
     );
 
+    CREATE TABLE IF NOT EXISTS recurring_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL CHECK(type IN ('INCOME', 'EXPENSE')),
+      amount INTEGER NOT NULL,
+      category_id INTEGER NOT NULL,
+      account_id INTEGER NOT NULL,
+      note TEXT,
+      period TEXT NOT NULL DEFAULT 'MONTHLY' CHECK(period IN ('DAILY', 'WEEKLY', 'MONTHLY')),
+      next_run INTEGER NOT NULL,
+      auto_create INTEGER DEFAULT 1,
+      last_run INTEGER,
+      is_deleted INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (category_id) REFERENCES categories(id),
+      FOREIGN KEY (account_id) REFERENCES accounts(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_trans_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_trans_category ON transactions(category_id);
     CREATE INDEX IF NOT EXISTS idx_trans_account ON transactions(account_id);
@@ -197,6 +214,86 @@ function addTransfer(tr) {
     db.prepare('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(tr.amount, tr.toAccountId);
 
     return result.lastInsertRowid;
+  });
+  return run();
+}
+
+// === 循环记账规则 ===
+
+/** 计算下一次执行时间：在当前 next_run 基础上加一个周期 */
+function computeNextRun(period, from) {
+  const d = new Date(from);
+  if (period === 'DAILY') d.setDate(d.getDate() + 1);
+  else if (period === 'WEEKLY') d.setDate(d.getDate() + 7);
+  else d.setMonth(d.getMonth() + 1); // MONTHLY
+  return d.getTime();
+}
+
+/** 获取所有循环记账规则（含分类/账户名） */
+function getAllRecurringRules() {
+  return db.prepare(`
+    SELECT r.*, c.name AS category_name, c.color AS category_color, a.name AS account_name
+    FROM recurring_rules r
+    LEFT JOIN categories c ON r.category_id = c.id
+    LEFT JOIN accounts a ON r.account_id = a.id
+    WHERE r.is_deleted = 0
+    ORDER BY r.next_run ASC
+  `).all();
+}
+
+/** 新增循环记账规则 */
+function addRecurringRule(r) {
+  const now = Date.now();
+  const result = db.prepare(`
+    INSERT INTO recurring_rules (type, amount, category_id, account_id, note, period, next_run, auto_create, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(r.type, r.amount, r.categoryId, r.accountId, r.note || null, r.period, r.nextRun, r.autoCreate ? 1 : 0, now);
+  return result.lastInsertRowid;
+}
+
+/** 更新循环记账规则 */
+function updateRecurringRule(id, r) {
+  return db.prepare(`
+    UPDATE recurring_rules SET type = ?, amount = ?, category_id = ?, account_id = ?, note = ?, period = ?, next_run = ?, auto_create = ?
+    WHERE id = ?
+  `).run(r.type, r.amount, r.categoryId, r.accountId, r.note || null, r.period, r.nextRun, r.autoCreate ? 1 : 0, id);
+}
+
+/** 删除循环记账规则（软删除） */
+function deleteRecurringRule(id) {
+  return db.prepare('UPDATE recurring_rules SET is_deleted = 1 WHERE id = ?').run(id);
+}
+
+/**
+ * 处理所有到期的循环记账规则。
+ * 对每条 next_run <= now 且 auto_create=1 的规则：
+ * 生成对应交易 + 更新账户余额 + 推进 next_run 到下一周期。
+ * 可能一次补上多个错过的周期。返回本次生成的交易数。
+ * 整体用事务保证一致性。
+ */
+function processRecurringRules() {
+  const now = Date.now();
+  const run = db.transaction(() => {
+    let created = 0;
+    const due = db.prepare('SELECT * FROM recurring_rules WHERE is_deleted = 0 AND auto_create = 1 AND next_run <= ?').all(now);
+    for (const rule of due) {
+      let nextRun = rule.next_run;
+      // 补齐所有错过的周期（防止长期未开启应用漏记）
+      let guard = 0;
+      while (nextRun <= now && guard < 1000) {
+        db.prepare(`
+          INSERT INTO transactions (type, amount, category_id, account_id, note, date, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(rule.type, rule.amount, rule.category_id, rule.account_id, rule.note || null, nextRun, now, now);
+        const balanceChange = rule.type === 'INCOME' ? rule.amount : -rule.amount;
+        db.prepare('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(balanceChange, rule.account_id);
+        created++;
+        nextRun = computeNextRun(rule.period, nextRun);
+        guard++;
+      }
+      db.prepare('UPDATE recurring_rules SET next_run = ?, last_run = ? WHERE id = ?').run(nextRun, now, rule.id);
+    }
+    return created;
   });
   return run();
 }
@@ -444,6 +541,11 @@ module.exports = {
   addBudget,
   updateBudget,
   deleteBudget,
+  getAllRecurringRules,
+  addRecurringRule,
+  updateRecurringRule,
+  deleteRecurringRule,
+  processRecurringRules,
   exportAllData,
   importData,
   exportToCsv,

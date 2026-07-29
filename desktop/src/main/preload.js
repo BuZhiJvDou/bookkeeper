@@ -30,6 +30,13 @@ contextBridge.exposeInMainWorld('api', {
     update: (id, budget) => ipcRenderer.invoke('budgets:update', id, budget),
     delete: (id) => ipcRenderer.invoke('budgets:delete', id),
   },
+  recurring: {
+    getAll: () => ipcRenderer.invoke('recurring:getAll'),
+    add: (rule) => ipcRenderer.invoke('recurring:add', rule),
+    update: (id, rule) => ipcRenderer.invoke('recurring:update', id, rule),
+    delete: (id) => ipcRenderer.invoke('recurring:delete', id),
+    process: () => ipcRenderer.invoke('recurring:process'),
+  },
   data: {
     export: () => ipcRenderer.invoke('data:export'),
     import: () => ipcRenderer.invoke('data:import'),

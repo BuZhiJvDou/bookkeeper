@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "bookkeeper.db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
@@ -36,4 +36,7 @@ object DatabaseModule {
 
     @Provides
     fun provideBudgetDao(db: AppDatabase): BudgetDao = db.budgetDao()
+
+    @Provides
+    fun provideRecurringRuleDao(db: AppDatabase): RecurringRuleDao = db.recurringRuleDao()
 }
