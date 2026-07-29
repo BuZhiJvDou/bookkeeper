@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id) => ipcRenderer.invoke('transactions:delete', id),
     getStats: (startDate, endDate) =>
       ipcRenderer.invoke('transactions:getStats', startDate, endDate),
+    transfer: (data) => ipcRenderer.invoke('transactions:transfer', data),
   },
   categories: {
     getAll: () => ipcRenderer.invoke('categories:getAll'),

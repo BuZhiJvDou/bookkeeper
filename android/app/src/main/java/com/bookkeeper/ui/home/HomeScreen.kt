@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import java.util.*
 fun HomeScreen(
     onAddTransaction: () -> Unit,
     onViewAllTransactions: () -> Unit,
+    onTransfer: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -41,6 +43,11 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("记账单", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onTransfer) {
+                        Icon(Icons.Default.SwapHoriz, contentDescription = "账户转账")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
@@ -212,6 +219,19 @@ fun TodaySummary(income: Long, expense: Long) {
 @Composable
 fun TransactionItem(transaction: Transaction) {
     val dateFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
+    val isTransfer = transaction.type == TransactionType.TRANSFER
+    val isIncome = transaction.type == TransactionType.INCOME
+    // 颜色：转账蓝 / 收入绿 / 支出红
+    val accentColor = when {
+        isTransfer -> Color(0xFF2196F3)
+        isIncome -> IncomeColor
+        else -> ExpenseColor
+    }
+    val iconText = when {
+        isTransfer -> "转"
+        isIncome -> "收"
+        else -> "支"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -228,15 +248,12 @@ fun TransactionItem(transaction: Transaction) {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (transaction.type == TransactionType.INCOME) IncomeColor.copy(alpha = 0.1f)
-                        else ExpenseColor.copy(alpha = 0.1f)
-                    ),
+                    .background(accentColor.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    if (transaction.type == TransactionType.INCOME) "收" else "支",
-                    color = if (transaction.type == TransactionType.INCOME) IncomeColor else ExpenseColor,
+                    iconText,
+                    color = accentColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -246,7 +263,7 @@ fun TransactionItem(transaction: Transaction) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    transaction.note ?: "未备注",
+                    if (isTransfer) "账户转账" else (transaction.note ?: "未备注"),
                     fontWeight = FontWeight.Medium,
                     fontSize = 15.sp
                 )
@@ -258,8 +275,8 @@ fun TransactionItem(transaction: Transaction) {
             }
 
             Text(
-                "${if (transaction.type == TransactionType.INCOME) "+" else "-"}¥${String.format("%.2f", transaction.amount / 100.0)}",
-                color = if (transaction.type == TransactionType.INCOME) IncomeColor else ExpenseColor,
+                "${if (isTransfer) "" else if (isIncome) "+" else "-"}¥${String.format("%.2f", transaction.amount / 100.0)}",
+                color = accentColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )

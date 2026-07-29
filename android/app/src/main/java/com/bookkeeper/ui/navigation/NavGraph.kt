@@ -15,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import com.bookkeeper.ui.home.HomeScreen
 import com.bookkeeper.ui.transaction.AddTransactionScreen
 import com.bookkeeper.ui.transaction.TransactionListScreen
+import com.bookkeeper.ui.transaction.TransferScreen
 import com.bookkeeper.ui.statistics.StatisticsScreen
 import com.bookkeeper.ui.settings.SettingsScreen
 import com.bookkeeper.ui.category.CategoryScreen
@@ -36,6 +37,7 @@ sealed class SubScreen(val route: String) {
     data object Categories : SubScreen("categories")
     data object Accounts : SubScreen("accounts")
     data object Budgets : SubScreen("budgets")
+    data object Transfer : SubScreen("transfer")
 }
 
 val bottomNavItems = listOf(Screen.Home, Screen.Statistics, Screen.Settings)
@@ -79,7 +81,8 @@ fun BookkeeperNavHost() {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onAddTransaction = { navController.navigate(SubScreen.AddTransaction.route) },
-                    onViewAllTransactions = { navController.navigate(SubScreen.TransactionList.route) }
+                    onViewAllTransactions = { navController.navigate(SubScreen.TransactionList.route) },
+                    onTransfer = { navController.navigate(SubScreen.Transfer.route) }
                 )
             }
             composable(Screen.Statistics.route) {
@@ -115,6 +118,11 @@ fun BookkeeperNavHost() {
             }
             composable(SubScreen.Budgets.route) {
                 BudgetScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(SubScreen.Transfer.route) {
+                TransferScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

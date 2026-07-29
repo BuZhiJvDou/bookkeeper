@@ -159,6 +159,7 @@
 
 .transaction-icon.income { background: rgba(76,175,80,0.1); color: var(--income); }
 .transaction-icon.expense { background: rgba(244,67,54,0.1); color: var(--expense); }
+.transaction-icon.transfer { background: rgba(33,150,243,0.1); color: #2196F3; }
 
 .transaction-info { flex: 1; }
 .transaction-note { font-size: 14px; font-weight: 500; }
@@ -167,6 +168,7 @@
 .transaction-amount { font-weight: 700; font-size: 15px; }
 .transaction-amount.income { color: var(--income); }
 .transaction-amount.expense { color: var(--expense); }
+.transaction-amount.transfer { color: #2196F3; }
 
 /* 按钮 */
 .btn {
