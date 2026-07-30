@@ -414,6 +414,12 @@ function SettingsItem({ icon, title, subtitle, onClick }) {
 function hl(tag, props, arr) { return React.createElement(tag, props, ...arr); }
 
 function h(tag, props, ...children) {
+  const kids = children.filter(c => c !== null && c !== undefined);
+  // 组件函数 / Fragment / 其他非字符串标签：直接透传，不做 CSS 选择器解析
+  // 否则 h(App) / h(BudgetPage) / h(React.Fragment) 会因 tag.match 崩溃导致白屏
+  if (typeof tag !== 'string') {
+    return React.createElement(tag, props, ...kids);
+  }
   // 解析 CSS 选择器：div.card#id → { tag: 'div', className: 'card', id: 'id' }
   const sel = tag.match(/^(\w+)?(#\w+)?(\.\S+)?/);
   const el = sel?.[1] || 'div';
@@ -424,7 +430,7 @@ function h(tag, props, ...children) {
   if (id && !merged.id) merged.id = id;
   if (cls) merged.className = [cls, merged.className].filter(Boolean).join(' ');
 
-  return React.createElement(el, merged, ...children.filter(c => c !== null && c !== undefined));
+  return React.createElement(el, merged, ...kids);
 }
 
 // ============================================================================
