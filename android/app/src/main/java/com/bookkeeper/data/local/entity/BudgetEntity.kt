@@ -25,7 +25,9 @@ data class BudgetEntity(
     val amount: Long,
     val period: BudgetPeriod,
     val startDate: Long,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 ) {
     fun toDomain(): Budget = Budget(
         id = id,
@@ -43,7 +45,9 @@ data class BudgetEntity(
             amount = b.amount,
             period = b.period,
             startDate = b.startDate,
-            isDeleted = b.isDeleted
+            isDeleted = b.isDeleted,
+            createdAt = b.createdAt,
+            updatedAt = b.updatedAt
         )
     }
 }

@@ -25,4 +25,16 @@ interface RecurringRuleDao {
 
     @Query("UPDATE recurring_rules SET isDeleted = 1 WHERE id = :id")
     suspend fun softDeleteRule(id: Long)
+
+    @Query("SELECT * FROM recurring_rules WHERE updatedAt > :since ORDER BY id")
+    suspend fun getAllForSync(since: Long): List<RecurringRuleEntity>
+
+    @Query("SELECT * FROM recurring_rules WHERE id = :id")
+    fun getByIdSync(id: Long): RecurringRuleEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(r: RecurringRuleEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(list: List<RecurringRuleEntity>)
 }

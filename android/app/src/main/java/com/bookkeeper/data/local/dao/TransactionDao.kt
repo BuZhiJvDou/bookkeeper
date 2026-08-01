@@ -49,6 +49,19 @@ interface TransactionDao {
 
     @Query("SELECT * FROM transactions WHERE isDeleted = 0")
     suspend fun getAllTransactionsForExport(): List<TransactionEntity>
+
+    // 同步用：返回 updatedAt > since 的所有记录（含 tombstone）
+    @Query("SELECT * FROM transactions WHERE updatedAt > :since ORDER BY id")
+    suspend fun getAllForSync(since: Long): List<TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE id = :id")
+    fun getByIdSync(id: Long): TransactionEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(t: TransactionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(list: List<TransactionEntity>)
 }
 
 data class CategoryTotal(

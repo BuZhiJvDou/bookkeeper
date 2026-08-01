@@ -2,6 +2,44 @@
 
 > 记录所有重要变更，方便回溯和维护。
 
+## [1.2.0] - 2026-08-02
+
+### 新增
+- **局域网 / 跨网段自动同步（v2 协议）**
+  - 桌面端：HTTP 同步服务（默认 17860 端口）+ mDNS/Bonjour 局域网广播
+  - Android 端：NSD 局域网发现 + OkHttp 同步客户端
+  - **同 WiFi 自动发现**，设置页一键同步
+  - **跨网段 / 公网模式**：在另一台设备开 "同步服务" → Cloudflare Tunnel / Tailscale / 自有服务器，URL 填过来即可
+  - 三接口协议：`/api/v2/ping` / `/api/v2/sync` / `/api/v2/snapshot?since=ts`
+  - 合并策略：**last-write-wins** + **tombstone 软删除**（防复活）
+  - 全 payload **AES-256-GCM 端到端加密**（钥匙 = SQLCipher 整库加密同一把 key）
+  - 头 HMAC-SHA256 签名（防网络中间人篡改）
+  - 即使 Cloudflare / VPS 中转也看不到明文
+- 新增 `docs/plans/lan-sync.md` 实施计划
+- `docs/SYNC_PROTOCOL.md` 加 v2 完整章节
+
+### 数据库
+- 所有表加 `createdAt` / `updatedAt` 字段（用于增量同步 + 冲突合并）
+- BudgetEntity / RecurringRuleEntity 也加时间戳
+- Room 版本 3 → 4（旧库自动重建，按你之前同意的策略）
+
+### 依赖
+- Android：`com.squareup.okhttp3:okhttp:4.12.0`
+- 桌面：`bonjour-service`（Windows 自带 mDNS 协议栈）
+- manifest 加 `INTERNET` / `ACCESS_WIFI_STATE` / `CHANGE_WIFI_MULTICAST_STATE` 权限
+- 新增 `network_security_config.xml`：局域网明文允许，公网强制 HTTPS
+
+### UI
+- Android 设置页加「局域网 / 跨网段同步」入口
+- 新增 `SyncScreen`：同 WiFi 设备列表 + 公网 URL 输入 + 一键同步
+
+### 决策
+- **[2026-08-02]** 局域网同步选用 mDNS（Bonjour/NSD），与苹果生态一致
+- **[2026-08-02]** 端口 17860（Bookkeeper 1.0 → B-1-1-0 谐音）
+- **[2026-08-02]** 公网模式只做端到端，不做中心化中继
+- **[2026-08-02]** 同步加密钥匙复用 SQLCipher 钥匙（少一处独立 key 管理）
+- **[2026-08-02]** 端到端加密用 AES-GCM envelope（与桌面 src/sync/crypto.js 完全对称）
+
 ## [1.1.0] - 2026-08-02
 
 ### 安全

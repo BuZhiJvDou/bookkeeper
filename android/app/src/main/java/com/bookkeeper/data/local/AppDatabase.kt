@@ -13,7 +13,7 @@ import com.bookkeeper.data.local.entity.*
         BudgetEntity::class,
         RecurringRuleEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

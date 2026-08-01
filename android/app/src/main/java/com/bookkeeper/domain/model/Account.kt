@@ -17,5 +17,7 @@ data class Account(
     val balance: Long = 0,      // 单位：分
     val currency: String = "CNY",
     val sortOrder: Int = 0,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )

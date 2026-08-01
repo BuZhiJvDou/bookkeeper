@@ -36,4 +36,16 @@ interface AccountDao {
 
     @Query("SELECT * FROM accounts WHERE isDeleted = 0")
     suspend fun getAllAccountsForExport(): List<AccountEntity>
+
+    @Query("SELECT * FROM accounts WHERE updatedAt > :since ORDER BY id")
+    suspend fun getAllForSync(since: Long): List<AccountEntity>
+
+    @Query("SELECT * FROM accounts WHERE id = :id")
+    fun getByIdSync(id: Long): AccountEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(a: AccountEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(list: List<AccountEntity>)
 }

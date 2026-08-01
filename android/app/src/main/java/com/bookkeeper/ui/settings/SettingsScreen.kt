@@ -27,6 +27,7 @@ fun SettingsScreen(
     onNavigateToAccounts: () -> Unit,
     onNavigateToBudgets: () -> Unit,
     onNavigateToRecurring: () -> Unit,
+    onNavigateToSync: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -174,6 +175,21 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // 同步
+            Text("数据同步", fontWeight = FontWeight.Medium, fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            SettingsItem(
+                icon = Icons.Default.Refresh,
+                title = "局域网 / 跨网段同步",
+                subtitle = "同 WiFi 自动发现，或填 URL 跨网段",
+                onClick = onNavigateToSync
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // 关于
             Text("关于", fontWeight = FontWeight.Medium, fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -183,7 +199,7 @@ fun SettingsScreen(
             SettingsItem(
                 icon = Icons.Default.Info,
                 title = "关于记账单",
-                subtitle = "版本 1.0.3（修复进度条闪退）",
+                subtitle = "版本 1.2.0（SQLCipher 加密 + 局域网同步）",
                 onClick = { }
             )
         }
