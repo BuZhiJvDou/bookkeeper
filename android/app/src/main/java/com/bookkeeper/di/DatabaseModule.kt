@@ -1,6 +1,7 @@
 package com.bookkeeper.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import com.bookkeeper.data.local.AppDatabase
 import com.bookkeeper.data.local.DbKey
@@ -20,7 +21,14 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        // SQLCipher 4.x：AAR 自带 native 库，会随依赖自动加载；不需要显式 loadLibs
+        // SQLCipher 4.5.4 AAR：native 库不自动加载，必须显式 loadLibrary
+        // 缺失这一行会触发 java.lang.UnsatisfiedLinkError: nativeOpen
+        try {
+            System.loadLibrary("sqlcipher")
+        } catch (e: UnsatisfiedLinkError) {
+            Log.e("BkDb", "loadLibrary sqlcipher failed", e)
+            throw e
+        }
 
         // 用共享钥匙构造 SupportFactory，Room 通过它打开加密 db
         val factory = SupportOpenHelperFactory(DbKey.passphraseHex.toByteArray(Charsets.UTF_8))
