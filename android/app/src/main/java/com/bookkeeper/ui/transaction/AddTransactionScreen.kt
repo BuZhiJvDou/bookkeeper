@@ -143,7 +143,7 @@ fun AddTransactionScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Primary)
+                    Icon(Icons.Default.DateRange, contentDescription = null, tint = Primary)
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(dateFormat.format(Date(uiState.date)))
                 }

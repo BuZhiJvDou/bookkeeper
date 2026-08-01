@@ -35,6 +35,7 @@ class AccountRepository @Inject constructor(
         accountDao.getTotalBalance() ?: 0L
 
     suspend fun initDefaultAccounts() {
+        if (accountDao.getAccountCount() > 0) return
         val defaults = listOf(
             Account(name = "现金", type = AccountType.CASH, icon = "payments", color = "#2ECC71", sortOrder = 0),
             Account(name = "银行卡", type = AccountType.BANK_CARD, icon = "credit_card", color = "#3498DB", sortOrder = 1),

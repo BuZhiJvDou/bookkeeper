@@ -31,6 +31,9 @@ interface AccountDao {
     @Query("SELECT SUM(balance) FROM accounts WHERE isDeleted = 0")
     suspend fun getTotalBalance(): Long?
 
+    @Query("SELECT COUNT(*) FROM accounts WHERE isDeleted = 0")
+    suspend fun getAccountCount(): Int
+
     @Query("SELECT * FROM accounts WHERE isDeleted = 0")
     suspend fun getAllAccountsForExport(): List<AccountEntity>
 }

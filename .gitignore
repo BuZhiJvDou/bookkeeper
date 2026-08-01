@@ -31,3 +31,5 @@ Thumbs.db
 # Temp
 *.zip
 *.tmp
+release/
+android/app/build/

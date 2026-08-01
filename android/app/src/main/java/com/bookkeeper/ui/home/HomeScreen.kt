@@ -9,7 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,7 +45,7 @@ fun HomeScreen(
                 title = { Text("记账单", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onTransfer) {
-                        Icon(Icons.Default.SwapHoriz, contentDescription = "账户转账")
+                        Icon(Icons.Default.Refresh, contentDescription = "账户转账")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -67,7 +67,8 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                // 不用 CircularProgressIndicator：Material3 与 animation-core 版本冲突会 NoSuchMethodError 闪退
+                Text("加载中…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(

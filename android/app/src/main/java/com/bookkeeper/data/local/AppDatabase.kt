@@ -14,7 +14,7 @@ import com.bookkeeper.data.local.entity.*
         RecurringRuleEntity::class
     ],
     version = 2,
-    exportSchema = true
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
