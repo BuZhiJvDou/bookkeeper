@@ -12,5 +12,7 @@ data class Category(
     val parentId: Long? = null,
     val sortOrder: Int = 0,
     val isSystem: Boolean = false,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 )

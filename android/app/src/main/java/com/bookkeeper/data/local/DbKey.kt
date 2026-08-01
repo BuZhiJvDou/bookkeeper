@@ -16,16 +16,17 @@ import javax.crypto.spec.SecretKeySpec
  */
 object DbKey {
     // Base64 编码的 32 字节 key；运行期解码成 SecretKey。
-    private const val B64: String = "uIXiS9OdESIRU8MQOKo6yjV1HhevuKoHc5K6r68PBuI="
+    // 也被同步层 (SyncCrypto) 复用做 HMAC/AES-GCM 钥匙派生。
+    const val KEY_B64_VALUE: String = "uIXiS9OdESIRU8MQOKo6yjV1HhevuKoHc5K6r68PBuI="
 
     val secretKey: SecretKey by lazy {
-        val raw = android.util.Base64.decode(B64, android.util.Base64.DEFAULT)
+        val raw = android.util.Base64.decode(KEY_B64_VALUE, android.util.Base64.DEFAULT)
         SecretKeySpec(raw, "AES")
     }
 
     /** Passphrase 形式（hex），供 SQLCipher PRAGMA key 使用 */
     val passphraseHex: String by lazy {
-        val raw = android.util.Base64.decode(B64, android.util.Base64.DEFAULT)
+        val raw = android.util.Base64.decode(KEY_B64_VALUE, android.util.Base64.DEFAULT)
         raw.joinToString("") { "%02x".format(it) }
     }
 }

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const db = require('../database/db');
+const { SyncManager } = require('../sync');
 
 // 单实例锁定
 const gotTheLock = app.requestSingleInstanceLock();
@@ -52,6 +53,14 @@ app.whenReady().then(() => {
 
   createWindow();
 
+  // 初始化同步管理器（不会自动启动，需用户在设置页开启）
+  syncManager = new SyncManager({ db });
+  syncManager.setNotifier((event, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(`bk-sync:event:${event}`, data);
+    }
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -59,8 +68,13 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   db.close();
+  if (syncManager) syncManager.stop();
   if (process.platform !== 'darwin') app.quit();
 });
+
+// === 同步 IPC ===
+
+let syncManager;
 
 // === IPC Handlers ===
 
@@ -204,5 +218,36 @@ ipcMain.handle('data:exportCsv', async () => {
     return { success: true, path: result.filePath };
   }
   return { success: false };
+});
+
+// 同步
+ipcMain.handle('bk-sync:startServer', async () => {
+  return syncManager.startServer();
+});
+
+ipcMain.handle('bk-sync:stopServer', async () => {
+  return syncManager.stopServer();
+});
+
+ipcMain.handle('bk-sync:startDiscovery', async () => {
+  syncManager.startDiscovery();
+  return { ok: true };
+});
+
+ipcMain.handle('bk-sync:stopDiscovery', async () => {
+  syncManager.stopDiscovery();
+  return { ok: true };
+});
+
+ipcMain.handle('bk-sync:syncWith', async (event, peer, sinceTs) => {
+  return syncManager.syncWith(peer, sinceTs || 0);
+});
+
+ipcMain.handle('bk-sync:syncWithUrl', async (event, url, sinceTs) => {
+  return syncManager.syncWithUrl(url, sinceTs || 0);
+});
+
+ipcMain.handle('bk-sync:getState', async () => {
+  return syncManager.getState();
 });
 }

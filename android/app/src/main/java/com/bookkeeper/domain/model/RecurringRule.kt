@@ -23,5 +23,6 @@ data class RecurringRule(
     val autoCreate: Boolean = true,
     val lastRun: Long? = null,
     val isDeleted: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )

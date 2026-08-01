@@ -42,4 +42,19 @@ contextBridge.exposeInMainWorld('api', {
     import: () => ipcRenderer.invoke('data:import'),
     exportCsv: () => ipcRenderer.invoke('data:exportCsv'),
   },
+  sync: {
+    startServer: () => ipcRenderer.invoke('bk-sync:startServer'),
+    stopServer: () => ipcRenderer.invoke('bk-sync:stopServer'),
+    startDiscovery: () => ipcRenderer.invoke('bk-sync:startDiscovery'),
+    stopDiscovery: () => ipcRenderer.invoke('bk-sync:stopDiscovery'),
+    syncWith: (peer, sinceTs) => ipcRenderer.invoke('bk-sync:syncWith', peer, sinceTs),
+    syncWithUrl: (url, sinceTs) => ipcRenderer.invoke('bk-sync:syncWithUrl', url, sinceTs),
+    getState: () => ipcRenderer.invoke('bk-sync:getState'),
+    on: (event, fn) => {
+      const ch = `bk-sync:event:${event}`;
+      const wrapped = (_e, data) => fn(data);
+      ipcRenderer.on(ch, wrapped);
+      return () => ipcRenderer.removeListener(ch, wrapped);
+    }
+  },
 });

@@ -37,4 +37,17 @@ interface CategoryDao {
 
     @Query("SELECT * FROM categories WHERE isDeleted = 0")
     suspend fun getAllCategoriesForExport(): List<CategoryEntity>
+
+    // 同步用
+    @Query("SELECT * FROM categories WHERE updatedAt > :since ORDER BY id")
+    suspend fun getAllForSync(since: Long): List<CategoryEntity>
+
+    @Query("SELECT * FROM categories WHERE id = :id")
+    fun getByIdSync(id: Long): CategoryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(c: CategoryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(list: List<CategoryEntity>)
 }

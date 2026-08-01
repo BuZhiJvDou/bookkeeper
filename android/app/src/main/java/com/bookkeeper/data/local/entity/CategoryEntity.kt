@@ -16,7 +16,9 @@ data class CategoryEntity(
     val parentId: Long? = null,
     val sortOrder: Int = 0,
     val isSystem: Boolean = false,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 ) {
     fun toDomain(): Category = Category(
         id = id,
@@ -27,7 +29,9 @@ data class CategoryEntity(
         parentId = parentId,
         sortOrder = sortOrder,
         isSystem = isSystem,
-        isDeleted = isDeleted
+        isDeleted = isDeleted,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 
     companion object {
@@ -40,7 +44,9 @@ data class CategoryEntity(
             parentId = c.parentId,
             sortOrder = c.sortOrder,
             isSystem = c.isSystem,
-            isDeleted = c.isDeleted
+            isDeleted = c.isDeleted,
+            createdAt = c.createdAt,
+            updatedAt = c.updatedAt
         )
     }
 }

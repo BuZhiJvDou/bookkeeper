@@ -28,4 +28,16 @@ interface BudgetDao {
 
     @Query("SELECT * FROM budgets WHERE isDeleted = 0")
     suspend fun getAllBudgetsForExport(): List<BudgetEntity>
+
+    @Query("SELECT * FROM budgets WHERE updatedAt > :since ORDER BY id")
+    suspend fun getAllForSync(since: Long): List<BudgetEntity>
+
+    @Query("SELECT * FROM budgets WHERE id = :id")
+    fun getByIdSync(id: Long): BudgetEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(b: BudgetEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(list: List<BudgetEntity>)
 }

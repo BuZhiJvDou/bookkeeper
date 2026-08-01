@@ -1,8 +1,78 @@
 # 数据同步协议
 
-> 最后更新: 2026-07-25
+> 最后更新: 2026-08-02
 
-## v1: JSON 导入/导出模式
+## v2: 局域网 / 跨网段自动同步（当前）
+
+### 概述
+v2 实现了局域网自动发现 + 跨网段（公网）双向同步。手动触发，一键同步。
+数据流：HTTP + AES-256-GCM 端到端加密。底层传输 JSON 协议与 v1 兼容，但**两
+端必须装同版本**才能互相同步。
+
+### 协议常量
+- HTTP 端口：**17860**（"Bookkeeper 1.0" → B-1-1-0）
+- mDNS 服务类型：`_bookkeeper._tcp`
+- HTTP 头：`X-Bk-Device`、`X-Bk-Ts`、`X-Bk-Sig`
+- AES-GCM envelope：`{v, iv, ct, tag}` 全 base64
+- 钥匙派生：SQLCipher KEY → SHA-256 → HMAC-SHA256("sync-hmac"|"sync-aesgcm") → 32 字节
+- 鉴权窗口：±5 分钟
+
+### 端点
+| Method | Path | 用途 |
+|---|---|---|
+| GET | `/api/v2/ping` | 健康检查 |
+| POST | `/api/v2/sync` | 客户端推 + 服务端返回增量 |
+| GET | `/api/v2/snapshot?since={ts}` | 服务端返回指定时间戳之后的全量 |
+
+### Payload schema
+```json
+{
+  "version": 2,
+  "schemaVersion": 1,
+  "deviceId": "android-abc123",
+  "clientTs": 1753459200000,
+  "data": {
+    "transactions": [...],
+    "categories": [...],
+    "accounts": [...],
+    "budgets": [...],
+    "recurring": [...]
+  }
+}
+```
+
+每条记录包含 `createdAt`、`updatedAt`、`isDeleted` 字段。**删除是软删除
+（tombstone）**，防止被对方同步复活。
+
+### 合并策略：last-write-wins
+- 同 ID 比 `updatedAt`，较新者胜出
+- 增量传输：只推 `updatedAt > since` 的记录
+- tombstone：删除标记随同步传播
+
+### 端到端加密
+- 全 payload 用 AES-256-GCM 加密（envelope base64）
+- HTTP 头 HMAC-SHA256 签名（防网络中间人篡改）
+- 钥匙 = SQLCipher 整库加密同一把 key（硬编码）
+- 即使 Cloudflare / 中转服务器转发也看不到明文
+
+### 局域网发现
+- 桌面：`bonjour-service`（Windows / macOS / Linux）
+- Android：`NsdManager`（系统 API）
+- 设备名：`Bookkeeper-{deviceId 前 8 位}`
+
+### 公网模式
+- 用户在 UI 填一个 HTTPS URL（Cloudflare Tunnel / Tailscale / 自有服务器）
+- 服务端 URL 由**另一台设备**作为 hub 提供
+- 软件本身不做公网中继，只做端到端
+- 公网 URL 必须 HTTPS；局域网允许 HTTP
+
+### 已知限制
+- 单人记账模型，没有用户/账号系统
+- 不做实时双向推送（避免后台进程被杀）
+- 不处理同时编辑同一行的真正冲突（last-write-wins 即可）
+- 钥匙硬编码 = 反编译可解（与 SQLCipher 整库加密策略一致）
+
+## v1: JSON 导入/导出模式（已实现但被 v2 替代）
 
 ### 概述
 v1 采用手动文件传输方式实现数据同步。用户在一台设备上导出数据为 JSON 文件，通过任意方式（微信、邮件、AirDrop 等）传输到另一台设备，然后导入。

@@ -37,7 +37,8 @@ data class RecurringRuleEntity(
     val autoCreate: Boolean = true,
     val lastRun: Long? = null,
     val isDeleted: Boolean = false,
-    val createdAt: Long
+    val createdAt: Long,
+    val updatedAt: Long = 0L
 ) {
     fun toDomain(): RecurringRule = RecurringRule(
         id = id,
@@ -51,7 +52,8 @@ data class RecurringRuleEntity(
         autoCreate = autoCreate,
         lastRun = lastRun,
         isDeleted = isDeleted,
-        createdAt = createdAt
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 
     companion object {
@@ -67,7 +69,8 @@ data class RecurringRuleEntity(
             autoCreate = r.autoCreate,
             lastRun = r.lastRun,
             isDeleted = r.isDeleted,
-            createdAt = r.createdAt
+            createdAt = r.createdAt,
+            updatedAt = r.updatedAt
         )
     }
 }

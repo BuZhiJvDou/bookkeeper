@@ -16,7 +16,9 @@ data class AccountEntity(
     val balance: Long = 0,
     val currency: String = "CNY",
     val sortOrder: Int = 0,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 ) {
     fun toDomain(): Account = Account(
         id = id,
@@ -27,7 +29,9 @@ data class AccountEntity(
         balance = balance,
         currency = currency,
         sortOrder = sortOrder,
-        isDeleted = isDeleted
+        isDeleted = isDeleted,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 
     companion object {
@@ -40,7 +44,9 @@ data class AccountEntity(
             balance = a.balance,
             currency = a.currency,
             sortOrder = a.sortOrder,
-            isDeleted = a.isDeleted
+            isDeleted = a.isDeleted,
+            createdAt = a.createdAt,
+            updatedAt = a.updatedAt
         )
     }
 }
