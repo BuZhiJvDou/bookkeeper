@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bookkeeper.ui.components.SafeProgressBar
 import com.bookkeeper.ui.theme.ExpenseColor
 import com.bookkeeper.ui.theme.IncomeColor
 import com.bookkeeper.ui.theme.Primary
@@ -48,7 +49,8 @@ fun StatisticsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                // 不用 CircularProgressIndicator，避免 NoSuchMethodError 闪退
+                Text("加载中…", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
@@ -219,12 +221,12 @@ fun CategoryStatItem(stat: CategoryStat) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // 进度条
-            LinearProgressIndicator(
+            SafeProgressBar(
                 progress = stat.percentage,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
+                    .height(6.dp),
+                height = 6.dp,
                 color = color,
                 trackColor = color.copy(alpha = 0.1f)
             )

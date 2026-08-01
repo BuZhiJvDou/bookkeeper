@@ -25,7 +25,7 @@ import com.bookkeeper.ui.recurring.RecurringScreen
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Home : Screen("home", "首页", Icons.Default.Home)
-    data object Statistics : Screen("statistics", "统计", Icons.Default.BarChart)
+    data object Statistics : Screen("statistics", "统计", Icons.Default.Star)
     data object Settings : Screen("settings", "设置", Icons.Default.Settings)
 }
 

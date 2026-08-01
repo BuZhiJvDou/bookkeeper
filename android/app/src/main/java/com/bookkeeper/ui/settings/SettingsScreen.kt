@@ -106,28 +106,28 @@ fun SettingsScreen(
             )
 
             SettingsItem(
-                icon = Icons.Default.Category,
+                icon = Icons.Default.Menu,
                 title = "分类管理",
                 subtitle = "自定义收入和支出分类",
                 onClick = onNavigateToCategories
             )
 
             SettingsItem(
-                icon = Icons.Default.AccountBalance,
+                icon = Icons.Default.Person,
                 title = "账户管理",
                 subtitle = "管理你的现金、银行卡等账户",
                 onClick = onNavigateToAccounts
             )
 
             SettingsItem(
-                icon = Icons.Default.Savings,
+                icon = Icons.Default.Star,
                 title = "预算管理",
                 subtitle = "设置月/周/年预算，控制开支",
                 onClick = onNavigateToBudgets
             )
 
             SettingsItem(
-                icon = Icons.Default.Autorenew,
+                icon = Icons.Default.Refresh,
                 title = "循环记账",
                 subtitle = "房租、工资等固定周期自动记账",
                 onClick = onNavigateToRecurring
@@ -142,7 +142,7 @@ fun SettingsScreen(
             )
 
             SettingsItem(
-                icon = Icons.Default.FileUpload,
+                icon = Icons.Default.Share,
                 title = "导出数据",
                 subtitle = "导出为 JSON 文件",
                 onClick = {
@@ -154,14 +154,14 @@ fun SettingsScreen(
             )
 
             SettingsItem(
-                icon = Icons.Default.FileDownload,
+                icon = Icons.Default.Add,
                 title = "导入数据",
                 subtitle = "从 JSON 文件导入",
                 onClick = { openJsonLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }
             )
 
             SettingsItem(
-                icon = Icons.Default.TableChart,
+                icon = Icons.Default.Send,
                 title = "导出 CSV",
                 subtitle = "导出为 Excel 可打开的 CSV",
                 onClick = {
@@ -183,7 +183,7 @@ fun SettingsScreen(
             SettingsItem(
                 icon = Icons.Default.Info,
                 title = "关于记账单",
-                subtitle = "版本 1.0.0",
+                subtitle = "版本 1.0.3（修复进度条闪退）",
                 onClick = { }
             )
         }
@@ -231,7 +231,7 @@ fun SettingsItem(
                 Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Icon(
-                Icons.Default.ChevronRight,
+                Icons.Default.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )

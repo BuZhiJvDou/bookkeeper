@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bookkeeper.ui.components.SafeProgressBar
 import com.bookkeeper.domain.model.BudgetPeriod
 import com.bookkeeper.domain.model.Category
 
@@ -149,12 +150,10 @@ private fun BudgetCard(item: BudgetUi, onEdit: () -> Unit, onDelete: () -> Unit)
             Spacer(Modifier.height(12.dp))
 
             // 进度条
-            LinearProgressIndicator(
+            SafeProgressBar(
                 progress = item.progress,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
+                modifier = Modifier.fillMaxWidth(),
+                height = 10.dp,
                 color = barColor,
                 trackColor = Color.Black.copy(alpha = 0.06f)
             )

@@ -2,6 +2,18 @@
 
 > 记录所有重要变更，方便回溯和维护。
 
+## [1.0.3] - 2026-08-02
+
+### 修复
+- **Android 启动闪退**（魅族 Android 16 / 部分国产 ROM）
+  - 抓取崩溃日志确认根因：`androidx.compose.material3.CircularProgressIndicator` / `LinearProgressIndicator` 调用的 `KeyframesSpec.KeyframesSpecConfig.at()` 方法在新版本 animation-core 中签名变化，触发 `NoSuchMethodError` 闪退
+  - 替换为自绘 `SafeProgressBar`（纯 Box + background）
+  - 加载中文案替代 `CircularProgressIndicator`
+- 优化 `Application.onCreate`：不再在启动期做 Hilt 字段注入或重活，先渲染再后台初始化
+- `AccountRepository.initDefaultAccounts` 增加 count 检查，避免重复插入
+- 去除巨型 `material-icons-extended` 依赖，仅用 core 图标；APK 体积 16MB → 9.4MB
+- 升级 compileSdk / targetSdk → 35（适配 Android 16）
+
 ## [0.7.0] - 2026-07-30
 
 ### 新增
