@@ -1,7 +1,8 @@
-const Database = require('better-sqlite3');
+const Database = require('better-sqlite3-multiple-ciphers');
 const path = require('path');
 const { app } = require('electron');
 const fs = require('fs');
+const { getPassphrase } = require('./dbkey');
 
 const DB_PATH = path.join(
   process.env.APPDATA || (process.platform === 'darwin'
@@ -19,6 +20,13 @@ function init() {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   db = new Database(DB_PATH);
+  // 启用 SQLCipher 整库加密（必须在任何其它 pragma 前调用）
+  db.pragma(`cipher='sqlcipher'`);
+  db.pragma(`key="x'${getPassphrase()}'"`);
+  // SQLCipher 4 兼容旧库 1.x 默认设置；显式指定 page_size 与 kdf_iter
+  db.pragma('cipher_page_size = 4096');
+  db.pragma('kdf_iter = 256000');
+  db.pragma('cipher_use_hmac = ON');
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 

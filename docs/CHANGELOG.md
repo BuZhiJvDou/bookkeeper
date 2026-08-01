@@ -2,6 +2,18 @@
 
 > 记录所有重要变更，方便回溯和维护。
 
+## [1.1.0] - 2026-08-02
+
+### 安全
+- **数据库整库加密（SQLCipher）**
+  - 双端共用 32 字节 AES key（Base64 硬编码，Android 端 `data/local/DbKey.kt`，桌面端 `database/dbkey.js`）
+  - Android：`net.zetetic:sqlcipher-android:4.5.4` + Room `SupportOpenHelperFactory`
+  - 桌面：`better-sqlite3-multiple-ciphers` + PRAGMA `cipher='sqlcipher'` + `key="x'<hex>'"`
+  - **未拿到钥匙直接看 db 是密文**（已验证：unkeyed sqlite3 CLI exit 1、错误钥匙 → `file is not a database`、前 4KB 字节无任何明文）
+  - 性能开销 ~5-10%，业务代码完全无感知
+  - 数据库 version 2 → 3（旧库自动重建）
+- 升级版本号 → 1.1.0（versionCode 5）
+
 ## [1.0.3] - 2026-08-02
 
 ### 修复
