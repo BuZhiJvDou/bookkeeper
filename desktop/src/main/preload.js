@@ -50,11 +50,15 @@ contextBridge.exposeInMainWorld('api', {
     syncWith: (peer, sinceTs) => ipcRenderer.invoke('bk-sync:syncWith', peer, sinceTs),
     syncWithUrl: (url, sinceTs) => ipcRenderer.invoke('bk-sync:syncWithUrl', url, sinceTs),
     getState: () => ipcRenderer.invoke('bk-sync:getState'),
+    diagnose: () => ipcRenderer.invoke('bk-sync:diagnose'),
     on: (event, fn) => {
       const ch = `bk-sync:event:${event}`;
       const wrapped = (_e, data) => fn(data);
       ipcRenderer.on(ch, wrapped);
       return () => ipcRenderer.removeListener(ch, wrapped);
     }
+  },
+  system: {
+    getLocalIp: () => ipcRenderer.invoke('system:getLocalIp'),
   },
 });

@@ -380,8 +380,7 @@ fun SettingsItem(
 fun BackgroundSection() {
     val context = LocalContext.current
     var hasImage by remember { mutableStateOf(BackgroundSettings.getImage(context) != null) }
-    var opacity by remember { mutableStateOf(BackgroundSettings.getOpacity(context)) }
-    var reloadTrigger by remember { mutableStateOf(0) }  // 触发重渲染
+    var visibility by remember { mutableStateOf(BackgroundSettings.getVisibility(context)) }
 
     // 选择图片 launcher
     val pickImageLauncher = rememberLauncherForActivityResult(
@@ -399,7 +398,7 @@ fun BackgroundSection() {
                     val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT)
                     BackgroundSettings.saveImage(context, b64)
                     hasImage = true
-                    reloadTrigger++
+                    android.widget.Toast.makeText(context, "已保存，重启后生效", android.widget.Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 android.widget.Toast.makeText(context, "读取失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
@@ -446,7 +445,6 @@ fun BackgroundSection() {
                         onClick = {
                             BackgroundSettings.clearImage(context)
                             hasImage = false
-                            reloadTrigger++
                         }
                     ) { Text("清除") }
                 }
@@ -454,18 +452,17 @@ fun BackgroundSection() {
 
             if (hasImage) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("背景透明度：${(opacity * 100).toInt()}%", fontSize = 12.sp)
+                Text("背景可见度：${(visibility * 100).toInt()}%", fontSize = 12.sp)
                 Slider(
-                    value = opacity,
+                    value = visibility,
                     onValueChange = {
-                        opacity = it
-                        BackgroundSettings.setOpacity(context, it)
-                        reloadTrigger++
+                        visibility = it
+                        BackgroundSettings.setVisibility(context, it)
                     },
-                    valueRange = 0.05f..0.6f
+                    valueRange = 0.2f..1.0f
                 )
                 Text(
-                    "提示：数值越小，背景图越弱，文字越清晰",
+                    "提示：滑块越大，背景图越清晰；越小，背景图越弱（文字更清楚）",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -246,4 +246,43 @@ ipcMain.handle('bk-sync:syncWithUrl', async (event, url, sinceTs) => {
 ipcMain.handle('bk-sync:getState', async () => {
   return syncManager.getState();
 });
+
+ipcMain.handle('bk-sync:diagnose', async () => {
+  // 诊断：返回 PC 局域网 IP + 同步端口 + 防火墙提示
+  const os = require('os');
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // 跳过内部 / 非 IPv4
+      if (net.family === 'IPv4' && !net.internal) {
+        ips.push({ name, address: net.address });
+      }
+    }
+  }
+  return {
+    ips,
+    port: 17860,
+    serverRunning: syncManager.server != null,
+    discoveryRunning: syncManager.discoveryBrowser != null,
+    tips: [
+      '确保 PC 和手机连同一个 WiFi',
+      'Windows 防火墙可能拦截 mDNS（UDP 5353）',
+      '如失败：把 17860 端口加入 Windows Defender 防火墙入站规则',
+    ],
+  };
+});
+
+ipcMain.handle('system:getLocalIp', async () => {
+  const os = require('os');
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return { ip: net.address, name };
+      }
+    }
+  }
+  return { ip: '127.0.0.1', name: 'loopback' };
+});
 }

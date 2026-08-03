@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.lifecycleScope
 import com.bookkeeper.data.repository.AccountRepository
 import com.bookkeeper.data.repository.CategoryRepository
@@ -35,12 +36,12 @@ class MainActivity : ComponentActivity() {
         // 先渲染 UI，再后台初始化，避免启动阶段阻塞/闪退
         setContent {
             BookkeeperTheme {
-                // 背景层（背景色 + 可选背景图，低透明度叠加）
+                // BackgroundLayer 自带：背景色 + 背景图 + 蒙版（控制可见度）
                 Box(modifier = Modifier.fillMaxSize()) {
                     BackgroundLayer()
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f)  // 让背景图微微透出
+                        color = Color.Transparent  // 完全透明，让背景图直接透出
                     ) {
                         BookkeeperNavHost()
                     }

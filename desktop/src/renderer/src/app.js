@@ -1479,6 +1479,8 @@ function SettingsPage() {
   const [opaExpanded, setOpaExpanded] = useState(false);
   const [syncState, setSyncState] = useState({ running: false, peers: [], lastResult: null });
   const [syncUrl, setSyncUrl] = useState('');
+  const [diagnoseInfo, setDiagnoseInfo] = useState(null);
+  const [showDiagnose, setShowDiagnose] = useState(false);
   const typeName = type => ({ CASH: t('cash'), BANK_CARD: t('bankCard'), ALIPAY: t('alipay'), WECHAT: t('wechat'), CREDIT_CARD: t('creditCard'), OTHER: t('other') }[type] || t('other'));
 
   // 同步状态轮询（每 2 秒）
@@ -1502,9 +1504,23 @@ function SettingsPage() {
       if (r && r.success !== false) {
         setSyncState(s => ({ ...s, running: true, port: r.port }));
         await window.api.sync.startDiscovery();
+        // 自动弹出诊断
+        runDiagnose();
       } else {
         alert('启动同步服务失败：' + (r?.error || 'unknown'));
       }
+    }
+  };
+
+  // 诊断：拿本机 IP + 端口 + 防火墙提示
+  const runDiagnose = async () => {
+    try {
+      const info = await window.api.sync.diagnose();
+      setDiagnoseInfo(info);
+      setShowDiagnose(true);
+    } catch (e) {
+      setDiagnoseInfo({ error: e.message });
+      setShowDiagnose(true);
     }
   };
 
@@ -1596,8 +1612,41 @@ function SettingsPage() {
           ? `本机端口 ${syncState.port || 17860}，局域网/手机可发现`
           : '开启后手机可在"局域网设备"中看到本机')
       ),
-      h('button.btn.btn-outline', { style: { padding: '4px 12px', fontSize: 12 }, onClick: e => { e.stopPropagation(); toggleServer(); } },
-        syncState.running ? '停止' : '启动')
+      h('div', { style: { display: 'flex', gap: 8 } },
+        h('button.btn.btn-outline', { style: { padding: '4px 12px', fontSize: 12 }, onClick: e => { e.stopPropagation(); toggleServer(); } },
+          syncState.running ? '停止' : '启动'),
+        h('button.btn.btn-outline', { style: { padding: '4px 12px', fontSize: 12 }, onClick: e => { e.stopPropagation(); runDiagnose(); } },
+          '诊断')
+      )
+    ),
+
+    // 诊断信息
+    showDiagnose && diagnoseInfo && h('div', { style: { marginTop: 8, padding: 12, background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 8 } },
+        h('strong', null, '同步诊断信息'),
+        h('span', { style: { cursor: 'pointer', color: 'var(--text-secondary)' }, onClick: () => setShowDiagnose(false) }, '✕')
+      ),
+      diagnoseInfo.error
+        ? h('div', { style: { color: 'var(--expense)' } }, '诊断失败: ' + diagnoseInfo.error)
+        : h(React.Fragment, null,
+            h('div', { style: { marginBottom: 4 } }, '本机 IP：'),
+            ...(diagnoseInfo.ips || []).map(ip =>
+              h('div', { key: ip.address, style: { marginLeft: 12, marginBottom: 2, fontFamily: 'monospace' } },
+                '• ' + ip.address + ' (' + ip.name + ')')
+            ),
+            h('div', { style: { marginTop: 8, marginBottom: 4 } }, '端口：' + (diagnoseInfo.port || 17860)),
+            h('div', { style: { marginBottom: 4 } },
+              '服务状态：' + (diagnoseInfo.serverRunning ? '🟢 运行中' : '🔴 未启动') + ' /  ' +
+              '发现：' + (diagnoseInfo.discoveryRunning ? '🟢 搜索中' : '🔴 未启动')),
+            h('div', { style: { marginTop: 10, padding: 8, background: 'rgba(108,99,255,0.08)', borderRadius: 4 } },
+              h('div', { style: { fontWeight: 'bold', marginBottom: 4 } }, '如果手机搜不到本机：'),
+              ...(diagnoseInfo.tips || []).map((tip, i) =>
+                h('div', { key: i, style: { marginBottom: 2 } }, '• ' + tip)
+              ),
+              h('div', { style: { marginTop: 6, color: 'var(--text-secondary)' } },
+                '公网同步：在手机端填写 URL：http://' + (diagnoseInfo.ips?.[0]?.address || 'your-ip') + ':' + (diagnoseInfo.port || 17860))
+            )
+          )
     ),
 
     // 发现的 peer
