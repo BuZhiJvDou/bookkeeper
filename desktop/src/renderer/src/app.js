@@ -804,8 +804,7 @@ function HomePage() {
         ? h('div.empty-state', null, t('noTx'))
         : h(React.Fragment, null, ...s.transactions.slice(0, 10).map(tx => h(TransactionItem, { key: tx.id, transaction: tx, showDelete: false })))
     ),
-    // 转账弹窗
-    showTransfer && h(TransferDialog, { onClose: () => setShowTransfer(false) })
+    // 转账弹窗（已删除：纯记账本用不到）
   );
 }
 
