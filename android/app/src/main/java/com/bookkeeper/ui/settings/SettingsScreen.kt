@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bookkeeper.ui.theme.BackgroundSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -199,10 +200,25 @@ fun SettingsScreen(
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 个性化（背景图 + 透明度）
+            Text(
+                "个性化",
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            BackgroundSection()
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             SettingsItem(
                 icon = Icons.Default.Info,
                 title = "关于记账单",
-                subtitle = "版本 1.2.0（SQLCipher 加密 + 局域网同步）",
+                subtitle = "版本 1.2.5（精致主题 + 背景图）",
                 onClick = { }
             )
 
@@ -348,6 +364,109 @@ fun SettingsItem(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * 背景图选择 + 透明度
+ * 复用桌面端 PC 版的逻辑
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BackgroundSection() {
+    val context = LocalContext.current
+    var hasImage by remember { mutableStateOf(BackgroundSettings.getImage(context) != null) }
+    var opacity by remember { mutableStateOf(BackgroundSettings.getOpacity(context)) }
+    var reloadTrigger by remember { mutableStateOf(0) }  // 触发重渲染
+
+    // 选择图片 launcher
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    val bytes = input.readBytes()
+                    // 限制 2MB（防止 SharedPreferences 撑爆）
+                    if (bytes.size > 2 * 1024 * 1024) {
+                        android.widget.Toast.makeText(context, "图片过大（>2MB），请选择小一点的", android.widget.Toast.LENGTH_SHORT).show()
+                        return@use
+                    }
+                    val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT)
+                    BackgroundSettings.saveImage(context, b64)
+                    hasImage = true
+                    reloadTrigger++
+                }
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, "读取失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("背景图片", fontWeight = FontWeight.Medium)
+                    Text(
+                        if (hasImage) "已设置（重启后仍生效）" else "未设置（从相册选择）",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        pickImageLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (hasImage) "更换" else "选择图片") }
+                if (hasImage) {
+                    OutlinedButton(
+                        onClick = {
+                            BackgroundSettings.clearImage(context)
+                            hasImage = false
+                            reloadTrigger++
+                        }
+                    ) { Text("清除") }
+                }
+            }
+
+            if (hasImage) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("背景透明度：${(opacity * 100).toInt()}%", fontSize = 12.sp)
+                Slider(
+                    value = opacity,
+                    onValueChange = {
+                        opacity = it
+                        BackgroundSettings.setOpacity(context, it)
+                        reloadTrigger++
+                    },
+                    valueRange = 0.05f..0.6f
+                )
+                Text(
+                    "提示：数值越小，背景图越弱，文字越清晰",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -13,6 +14,7 @@ import com.bookkeeper.data.repository.AccountRepository
 import com.bookkeeper.data.repository.CategoryRepository
 import com.bookkeeper.data.repository.RecurringRepository
 import com.bookkeeper.ui.navigation.BookkeeperNavHost
+import com.bookkeeper.ui.theme.BackgroundLayer
 import com.bookkeeper.ui.theme.BookkeeperTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -33,11 +35,15 @@ class MainActivity : ComponentActivity() {
         // 先渲染 UI，再后台初始化，避免启动阶段阻塞/闪退
         setContent {
             BookkeeperTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    BookkeeperNavHost()
+                // 背景层（背景色 + 可选背景图，低透明度叠加）
+                Box(modifier = Modifier.fillMaxSize()) {
+                    BackgroundLayer()
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f)  // 让背景图微微透出
+                    ) {
+                        BookkeeperNavHost()
+                    }
                 }
             }
         }

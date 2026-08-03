@@ -14,8 +14,8 @@ android {
         applicationId = "com.bookkeeper"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.2.3"
+        versionCode = 11
+        versionName = "1.2.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
