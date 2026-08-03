@@ -118,7 +118,7 @@ const LANG = {
     todayIncome: '今日收入', todayExpense: '今日支出', balance: '结余',
     recentTx: '最近交易', viewAll: '查看全部',
     noTx: '暂无交易记录，点击右下角 + 开始记账',
-    addTx: '记一笔', expense: '支出', income: '收入', transfer: '转账',
+    addTx: '记一笔', expense: '支出', income: '收入',
     amount: '金额', note: '备注', date: '日期', category: '分类', account: '账户',
     save: '保存', cancel: '取消', delete: '删除', confirm: '确认',
     all: '全部', search: '搜索备注或分类...', total: '共 {n} 条',
@@ -149,10 +149,6 @@ const LANG = {
     noBudget: '还没有预算，点击右上角新增，控制你的开支',
     budgetExceeded: '已超支！', budgetWarning: '接近预算上限',
     selectCategory: '选择分类（留空为总预算）', budgetDeleteConfirm: '确定删除此预算？',
-    transferTitle: '账户转账', fromAccount: '转出账户', toAccount: '转入账户',
-    transferAmount: '转账金额', transferNote: '备注（可选）', transferBtn: '转账',
-    transferSuccess: '转账成功！', sameAccountErr: '转出和转入账户不能相同',
-    transferRecord: '转账', transferTo: '转到',
     pieChart: '支出分类占比', trendChart: '收支趋势', incomeLegend: '收入', expenseLegend: '支出',
     recurring: '循环记账', recurringMgmt: '循环记账管理', addRecurring: '新增循环', editRecurring: '编辑循环',
     recurPeriodDaily: '每天', recurPeriodWeekly: '每周', recurPeriodMonthly: '每月',
@@ -167,7 +163,7 @@ const LANG = {
     todayIncome: 'Today Income', todayExpense: 'Today Expense', balance: 'Balance',
     recentTx: 'Recent Transactions', viewAll: 'View All',
     noTx: 'No transactions yet. Tap + to start.',
-    addTx: 'Add Transaction', expense: 'Expense', income: 'Income', transfer: 'Transfer',
+    addTx: 'Add Transaction', expense: 'Expense', income: 'Income',
     amount: 'Amount', note: 'Note', date: 'Date', category: 'Category', account: 'Account',
     save: 'Save', cancel: 'Cancel', delete: 'Delete', confirm: 'Confirm',
     all: 'All', search: 'Search note or category...', total: '{n} records',
@@ -196,13 +192,9 @@ const LANG = {
     budgetPeriod: 'Period', periodMonthly: 'Monthly', periodWeekly: 'Weekly', periodYearly: 'Yearly',
     budgetUsed: 'Used', budgetLeft: 'Left', budgetOver: 'Over',
     noBudget: 'No budgets yet. Tap + to control your spending.',
-    budgetExceeded: 'Exceeded!', budgetWarning: 'Near limit',
+    budgetExceeded: 'Over budget!', budgetWarning: 'Approaching limit',
     selectCategory: 'Select category (empty = total budget)', budgetDeleteConfirm: 'Delete this budget?',
-    transferTitle: 'Transfer', fromAccount: 'From', toAccount: 'To',
-    transferAmount: 'Amount', transferNote: 'Note (optional)', transferBtn: 'Transfer',
-    transferSuccess: 'Transfer done!', sameAccountErr: 'From and To must differ',
-    transferRecord: 'Transfer', transferTo: 'to',
-    pieChart: 'Expense by Category', trendChart: 'Income/Expense Trend', incomeLegend: 'Income', expenseLegend: 'Expense',
+    pieChart: 'Expense Breakdown', trendChart: 'Income vs Expense', incomeLegend: 'Income', expenseLegend: 'Expense',
     recurring: 'Recurring', recurringMgmt: 'Recurring', addRecurring: 'Add Recurring', editRecurring: 'Edit Recurring',
     recurPeriodDaily: 'Daily', recurPeriodWeekly: 'Weekly', recurPeriodMonthly: 'Monthly',
     nextRun: 'Next Run', autoCreate: 'Auto Create', noRecurring: 'No recurring rules yet (rent, salary, etc.)',
@@ -322,8 +314,6 @@ const store = {
   },
   async addTransaction(t) { await window.api.transactions.add(t); await this.loadAll(); },
   async deleteTransaction(id) { await window.api.transactions.delete(id); await this.loadAll(); },
-  // --- 账户转账 ---
-  async transfer(data) { await window.api.transactions.transfer(data); await this.loadAll(); },
   // --- 预算操作 ---
   async addBudget(b) { await window.api.budgets.add(b); await this.loadAll(); },
   async updateBudget(id, b) { await window.api.budgets.update(id, b); await this.loadAll(); },
@@ -773,74 +763,12 @@ function QuickCalc({ onFillAmount, onClose }) {
 // 十三、页面组件
 // ============================================================================
 
-// --- 账户转账弹窗 ---
-function TransferDialog({ onClose }) {
-  const s = useStore();
-  const accounts = s.accounts;
-  const [amount, setAmount] = useState('');
-  const [fromId, setFromId] = useState(accounts[0]?.id || '');
-  const [toId, setToId] = useState(accounts[1]?.id || accounts[0]?.id || '');
-  const [note, setNote] = useState('');
-  const [err, setErr] = useState('');
-
-  const handleSave = async () => {
-    const cents = Math.round(parseFloat((amount || '').replace(',', '.')) * 100);
-    if (!cents || cents <= 0) return;
-    if (fromId === toId) { setErr(t('sameAccountErr')); return; }
-    await store.transfer({
-      amount: cents,
-      fromAccountId: Number(fromId),
-      toAccountId: Number(toId),
-      note: note || null,
-      date: Date.now(),
-    });
-    onClose();
-  };
-
-  return h('div.modal-overlay', { onClick: e => e.target === e.currentTarget && onClose() },
-    h('div.modal', { style: { maxWidth: 420 } },
-      h('div.modal-title', null, `🔄 ${t('transferTitle')}`),
-      // 金额
-      h('div', { style: { marginBottom: 16 } },
-        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('transferAmount')),
-        h('input.input', { type: 'text', inputMode: 'decimal', value: amount, placeholder: '0.00', autoFocus: true,
-          onChange: e => setAmount(e.target.value.replace(/[^0-9.,]/g, '')),
-          onKeyDown: e => e.key === 'Enter' && handleSave() })
-      ),
-      // 转出账户
-      h('div', { style: { marginBottom: 16 } },
-        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('fromAccount')),
-        h('select.input', { value: fromId, onChange: e => { setFromId(e.target.value); setErr(''); } },
-          ...accounts.map(a => h('option', { key: a.id, value: a.id }, `${a.name}（¥${fmtMoney(a.balance)}）`))
-        )
-      ),
-      // 转入账户
-      h('div', { style: { marginBottom: 16 } },
-        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('toAccount')),
-        h('select.input', { value: toId, onChange: e => { setToId(e.target.value); setErr(''); } },
-          ...accounts.map(a => h('option', { key: a.id, value: a.id }, `${a.name}（¥${fmtMoney(a.balance)}）`))
-        )
-      ),
-      // 备注
-      h('div', { style: { marginBottom: 16 } },
-        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('transferNote')),
-        h('input.input', { type: 'text', value: note, onChange: e => setNote(e.target.value) })
-      ),
-      // 错误提示
-      err && h('div', { style: { color: '#f44336', fontSize: 13, marginBottom: 12 } }, err),
-      // 操作
-      h('div.modal-actions', null,
-        h('button.btn.btn-outline', { onClick: onClose }, t('cancel')),
-        h('button.btn.btn-primary', { onClick: handleSave }, t('transferBtn'))
-      )
-    )
-  );
-}
+// --- 账户转账弹窗（已删除：纯记账本用不到） ---
+// 原 TransferDialog / store.transfer / db.addTransfer / IPC transactions:transfer 全部移除
 
 // --- 首页 ---
 function HomePage() {
   const s = useStore();
-  const [showTransfer, setShowTransfer] = useState(false);
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const todayEnd = todayStart + 86400000;
@@ -866,13 +794,6 @@ function HomePage() {
       h('div.today-card', null, h('div.today-label', null, t('todayIncome')), h('div.today-income', null, `¥${fmtMoney(sum(todayTxs, 'INCOME'))}`)),
       h('div.today-card', null, h('div.today-label', null, t('todayExpense')), h('div.today-expense', null, `¥${fmtMoney(sum(todayTxs, 'EXPENSE'))}`))
     ),
-    // 转账入口按钮
-    h('div', { style: { marginBottom: 16 } },
-      h('button.btn.btn-outline', {
-        style: { width: '100%', padding: '12px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 },
-        onClick: () => setShowTransfer(true)
-      }, `🔄 ${t('transferTitle')}`)
-    ),
     // 最近交易
     h('div.card', null,
       h('div.card-header', null,
@@ -883,8 +804,7 @@ function HomePage() {
         ? h('div.empty-state', null, t('noTx'))
         : h(React.Fragment, null, ...s.transactions.slice(0, 10).map(tx => h(TransactionItem, { key: tx.id, transaction: tx, showDelete: false })))
     ),
-    // 转账弹窗
-    showTransfer && h(TransferDialog, { onClose: () => setShowTransfer(false) })
+    // 转账弹窗（已删除：纯记账本用不到）
   );
 }
 

@@ -37,6 +37,9 @@ fun SettingsScreen(
     // 待写入文件的内容缓存（点导出→生成内容→SAF 选路径→写入）
     var pendingContent by remember { mutableStateOf<String?>(null) }
 
+    // 重置对话框
+    var showResetDialog by remember { mutableStateOf(false) }
+
     // 显示提示
     LaunchedEffect(message) {
         message?.let {
@@ -202,8 +205,102 @@ fun SettingsScreen(
                 subtitle = "版本 1.2.0（SQLCipher 加密 + 局域网同步）",
                 onClick = { }
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 危险操作（深色 + 小字，避免误触）
+            Text(
+                "危险操作",
+                fontWeight = FontWeight.Medium,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "⚠ 下方操作不可撤销，请先导出备份",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            OutlinedButton(
+                onClick = { showResetDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("清除全部数据并重新开始")
+            }
         }
     }
+
+    if (showResetDialog) {
+        ResetConfirmDialog(
+            onConfirm = {
+                showResetDialog = false
+                viewModel.resetAllData {
+                    // 让用户感知到：让他手动退出 app，下次启动会重建空 db
+                    android.os.Process.killProcess(android.os.Process.myPid())
+                }
+            },
+            onDismiss = { showResetDialog = false }
+        )
+    }
+}
+
+/**
+ * 二次确认：要求用户输入 "RESET" 才能点确认
+ * （防止手滑删掉全部数据）
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ResetConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var input by remember { mutableStateOf("") }
+    val canConfirm = input.trim().equals("RESET", ignoreCase = true)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("清除全部数据？") },
+        text = {
+            Column {
+                Text("此操作会：")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("• 删除所有交易记录")
+                Text("• 删除所有账户、分类、预算")
+                Text("• 重置后不可恢复（请先导出 JSON 备份）")
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "输入 RESET 确认：",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    singleLine = true,
+                    placeholder = { Text("RESET") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = canConfirm
+            ) {
+                Text("确认清除", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }
 
 /** 把内容写入用户通过 SAF 选择的 Uri */

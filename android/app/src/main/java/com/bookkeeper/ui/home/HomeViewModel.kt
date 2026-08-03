@@ -32,67 +32,78 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        loadData()
+        observeData()
     }
 
-    private fun loadData() {
+    /**
+     * 实时订阅所有数据源：交易表、账户表的任何变更都会自动重算首页。
+     * 旧实现：只在 init 跑一次 getTotalByTypeAndDateRange (suspend Long)，
+     *       → 新增/删除交易后余额 / 今日收支不会刷新，要退出重进。
+     * 新实现：5 个 Flow combine 后任意一个发射新值就更新 UiState。
+     */
+    private fun observeData() {
         viewModelScope.launch {
-            val calendar = Calendar.getInstance()
+            val (todayStart, todayEnd, monthStart, monthEnd) = computeRanges()
 
-            // 今日起止
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val todayStart = calendar.timeInMillis
+            // 1) 最近交易（按本月范围，Flow 持续发射）
+            val transactionsFlow = transactionRepository.getTransactionsByDateRange(monthStart, monthEnd)
 
-            calendar.add(Calendar.DAY_OF_MONTH, 1)
-            val todayEnd = calendar.timeInMillis
+            // 2-5) 4 个金额 Flow
+            val todayExpenseFlow = transactionRepository.observeTotalByTypeAndDateRange(
+                TransactionType.EXPENSE, todayStart, todayEnd)
+            val todayIncomeFlow = transactionRepository.observeTotalByTypeAndDateRange(
+                TransactionType.INCOME, todayStart, todayEnd)
+            val monthExpenseFlow = transactionRepository.observeTotalByTypeAndDateRange(
+                TransactionType.EXPENSE, monthStart, monthEnd)
+            val monthIncomeFlow = transactionRepository.observeTotalByTypeAndDateRange(
+                TransactionType.INCOME, monthStart, monthEnd)
+            val totalBalanceFlow = accountRepository.observeTotalBalance()
 
-            // 本月起止
-            calendar.timeInMillis = System.currentTimeMillis()
-            calendar.set(Calendar.DAY_OF_MONTH, 1)
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val monthStart = calendar.timeInMillis
-
-            calendar.add(Calendar.MONTH, 1)
-            val monthEnd = calendar.timeInMillis
-
-            // 并行加载数据
-            val todayExpense = transactionRepository.getTotalByTypeAndDateRange(
-                TransactionType.EXPENSE, todayStart, todayEnd
-            )
-            val todayIncome = transactionRepository.getTotalByTypeAndDateRange(
-                TransactionType.INCOME, todayStart, todayEnd
-            )
-            val monthExpense = transactionRepository.getTotalByTypeAndDateRange(
-                TransactionType.EXPENSE, monthStart, monthEnd
-            )
-            val monthIncome = transactionRepository.getTotalByTypeAndDateRange(
-                TransactionType.INCOME, monthStart, monthEnd
-            )
-            val totalBalance = accountRepository.getTotalBalance()
-
-            // 最近交易
-            transactionRepository.getTransactionsByDateRange(monthStart, monthEnd).collect { transactions ->
-                _uiState.value = HomeUiState(
-                    todayExpense = todayExpense,
-                    todayIncome = todayIncome,
-                    monthExpense = monthExpense,
-                    monthIncome = monthIncome,
-                    totalBalance = totalBalance,
-                    recentTransactions = transactions.take(10),
+            combine(
+                transactionsFlow,
+                todayExpenseFlow,
+                todayIncomeFlow,
+                monthExpenseFlow,
+                monthIncomeFlow,
+                totalBalanceFlow
+            ) { values ->
+                @Suppress("UNCHECKED_CAST")
+                val txs = values[0] as List<Transaction>
+                HomeUiState(
+                    todayExpense = values[1] as Long,
+                    todayIncome = values[2] as Long,
+                    monthExpense = values[3] as Long,
+                    monthIncome = values[4] as Long,
+                    totalBalance = values[5] as Long,
+                    recentTransactions = txs.take(10),
                     isLoading = false
                 )
+            }.collect { newState ->
+                _uiState.value = newState
             }
         }
     }
 
-    fun refresh() {
-        _uiState.value = _uiState.value.copy(isLoading = true)
-        loadData()
+    private fun computeRanges(): LongArray {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val todayStart = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        val todayEnd = calendar.timeInMillis
+
+        calendar.timeInMillis = System.currentTimeMillis()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val monthStart = calendar.timeInMillis
+        calendar.add(Calendar.MONTH, 1)
+        val monthEnd = calendar.timeInMillis
+
+        return longArrayOf(todayStart, todayEnd, monthStart, monthEnd)
     }
 }

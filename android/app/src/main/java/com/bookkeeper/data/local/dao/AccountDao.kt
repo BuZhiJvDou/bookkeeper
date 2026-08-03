@@ -31,6 +31,10 @@ interface AccountDao {
     @Query("SELECT SUM(balance) FROM accounts WHERE isDeleted = 0")
     suspend fun getTotalBalance(): Long?
 
+    // 实时观察：每次 accounts 表变更后 Flow 会重新发射
+    @Query("SELECT COALESCE(SUM(balance),0) FROM accounts WHERE isDeleted = 0")
+    fun observeTotalBalance(): Flow<Long>
+
     @Query("SELECT COUNT(*) FROM accounts WHERE isDeleted = 0")
     suspend fun getAccountCount(): Int
 

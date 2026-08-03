@@ -46,54 +46,61 @@ class StatisticsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(StatisticsUiState())
     val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
 
+    // 选中的周期
+    private val selectedPeriod = MutableStateFlow(Period.MONTH)
+
     init {
-        loadStatistics(Period.MONTH)
+        // 任何交易表或账户表变化 + 周期切换都触发重算
+        viewModelScope.launch {
+            combine(
+                transactionRepository.getAllTransactions(),
+                categoryRepository.getAllCategories(),
+                selectedPeriod
+            ) { _, categories, period -> Triple(categories, period, Unit) }
+                .collectLatest { (categories, period, _) ->
+                    reloadForPeriod(categories, period)
+                }
+        }
     }
 
     fun setPeriod(period: Period) {
-        loadStatistics(period)
+        selectedPeriod.value = period
     }
 
-    private fun loadStatistics(period: Period) {
+    private suspend fun reloadForPeriod(categories: List<Category>, period: Period) {
         _uiState.value = _uiState.value.copy(isLoading = true, selectedPeriod = period)
+        val (startDate, endDate) = getDateRange(period)
 
-        viewModelScope.launch {
-            val (startDate, endDate) = getDateRange(period)
+        val totalIncome = transactionRepository.getTotalByTypeAndDateRange(
+            TransactionType.INCOME, startDate, endDate
+        )
+        val totalExpense = transactionRepository.getTotalByTypeAndDateRange(
+            TransactionType.EXPENSE, startDate, endDate
+        )
+        val categoryTotals = transactionRepository.getCategoryTotals(
+            TransactionType.EXPENSE, startDate, endDate
+        )
 
-            val totalIncome = transactionRepository.getTotalByTypeAndDateRange(
-                TransactionType.INCOME, startDate, endDate
-            )
-            val totalExpense = transactionRepository.getTotalByTypeAndDateRange(
-                TransactionType.EXPENSE, startDate, endDate
-            )
-            val categoryTotals = transactionRepository.getCategoryTotals(
-                TransactionType.EXPENSE, startDate, endDate
-            )
-
-            val categories = categoryRepository.getAllCategories().first()
-            val categoryMap = categories.associateBy { it.id }
-
-            val stats = categoryTotals.mapNotNull { ct ->
-                categoryMap[ct.categoryId]?.let { cat ->
-                    CategoryStat(
-                        category = cat,
-                        amount = ct.total,
-                        percentage = if (totalExpense > 0) ct.total.toFloat() / totalExpense else 0f
-                    )
-                }
+        val categoryMap = categories.associateBy { it.id }
+        val stats = categoryTotals.mapNotNull { ct ->
+            categoryMap[ct.categoryId]?.let { cat ->
+                CategoryStat(
+                    category = cat,
+                    amount = ct.total,
+                    percentage = if (totalExpense > 0) ct.total.toFloat() / totalExpense else 0f
+                )
             }
-
-            val trend = calcTrend(period)
-
-            _uiState.value = StatisticsUiState(
-                selectedPeriod = period,
-                totalIncome = totalIncome,
-                totalExpense = totalExpense,
-                categoryTotals = stats,
-                trend = trend,
-                isLoading = false
-            )
         }
+        val trend = calcTrend(period)
+
+        _uiState.value = StatisticsUiState(
+            selectedPeriod = period,
+            totalIncome = totalIncome,
+            totalExpense = totalExpense,
+            categoryTotals = stats,
+            trend = trend,
+            isLoading = false
+        )
     }
 
     /**

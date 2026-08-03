@@ -34,6 +34,9 @@ class AccountRepository @Inject constructor(
     suspend fun getTotalBalance(): Long =
         accountDao.getTotalBalance() ?: 0L
 
+    fun observeTotalBalance(): Flow<Long> =
+        accountDao.observeTotalBalance()
+
     suspend fun initDefaultAccounts() {
         if (accountDao.getAccountCount() > 0) return
         val defaults = listOf(
