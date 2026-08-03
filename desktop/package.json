@@ -1,6 +1,6 @@
 {
   "name": "bookkeeper-desktop",
-  "version": "1.0.0",
+  "version": "1.2.5",
   "description": "记账单桌面客户端",
   "main": "src/main/index.js",
   "scripts": {

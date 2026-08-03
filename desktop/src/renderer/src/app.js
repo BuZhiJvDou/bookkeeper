@@ -1462,7 +1462,7 @@ function RecurringForm({ rule, onClose }) {
       ),
       // 备注
       h('div', { style: { marginBottom: 20 } },
-        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('transferNote')),
+        h('label', { style: { display: 'block', fontSize: 13, color: '#555', marginBottom: 6 } }, t('note')),
         h('input.input', { type: 'text', value: note, onChange: e => setNote(e.target.value) })
       ),
       h('div.modal-actions', null,
@@ -1477,7 +1477,61 @@ function RecurringForm({ rule, onClose }) {
 function SettingsPage() {
   const s = useStore();
   const [opaExpanded, setOpaExpanded] = useState(false);
+  const [syncState, setSyncState] = useState({ running: false, peers: [], lastResult: null });
+  const [syncUrl, setSyncUrl] = useState('');
   const typeName = type => ({ CASH: t('cash'), BANK_CARD: t('bankCard'), ALIPAY: t('alipay'), WECHAT: t('wechat'), CREDIT_CARD: t('creditCard'), OTHER: t('other') }[type] || t('other'));
+
+  // 同步状态轮询（每 2 秒）
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const st = await window.api.sync.getState();
+        setSyncState(prev => ({ ...prev, ...st }));
+      } catch (e) { /* sync not initialized yet */ }
+    }, 2000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 启动/停止同步服务（局域网广播 + HTTP 接收）
+  const toggleServer = async () => {
+    if (syncState.running) {
+      await window.api.sync.stopServer();
+      setSyncState(s => ({ ...s, running: false }));
+    } else {
+      const r = await window.api.sync.startServer();
+      if (r && r.success !== false) {
+        setSyncState(s => ({ ...s, running: true, port: r.port }));
+        await window.api.sync.startDiscovery();
+      } else {
+        alert('启动同步服务失败：' + (r?.error || 'unknown'));
+      }
+    }
+  };
+
+  // 与指定 URL 同步（公网模式）
+  const syncWithUrl = async () => {
+    if (!syncUrl.trim()) { alert('请填写 URL'); return; }
+    setSyncState(s => ({ ...s, busy: true }));
+    try {
+      const r = await window.api.sync.syncWithUrl(syncUrl.trim(), 0);
+      setSyncState(s => ({ ...s, lastResult: r, busy: false }));
+      await store.loadAll();
+    } catch (e) {
+      setSyncState(s => ({ ...s, lastResult: { error: e.message }, busy: false }));
+    }
+  };
+
+  // 与指定 peer 同步
+  const syncWithPeer = async (peer) => {
+    setSyncState(s => ({ ...s, busy: true }));
+    try {
+      const r = await window.api.sync.syncWith(peer, 0);
+      setSyncState(s => ({ ...s, lastResult: r, busy: false }));
+      await store.loadAll();
+    } catch (e) {
+      setSyncState(s => ({ ...s, lastResult: { error: e.message }, busy: false }));
+    }
+  };
 
   // 背景图选择
   const chooseBg = () => {
@@ -1529,6 +1583,62 @@ function SettingsPage() {
     h(SettingsItem, { icon: '📤', title: t('exportJson'), subtitle: t('exportJsonDesc'), onClick: async () => { if ((await window.api.data.export()).success) alert(t('exportSuccess')); } }),
     h(SettingsItem, { icon: '📥', title: t('importJson'), subtitle: t('importJsonDesc'), onClick: async () => { const r = await window.api.data.import(); if (r.success) { alert(t('importSuccess', { n: r.count })); await store.loadAll(); } } }),
     h(SettingsItem, { icon: '📊', title: t('exportCsv'), subtitle: t('exportCsvDesc'), onClick: async () => { if ((await window.api.data.exportCsv()).success) alert(t('csvSuccess')); } }),
+
+    // 数据同步（局域网 + 跨网段）
+    h('div', { style: { margin: '20px 0 12px', fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' } }, '数据同步'),
+
+    // 启动/停止服务
+    h('div.settings-item', { style: { cursor: 'pointer' }, onClick: toggleServer },
+      h('div.settings-icon', null, syncState.running ? '🟢' : '⚫'),
+      h('div.settings-info', { style: { flex: 1 } },
+        h('div.settings-title', null, syncState.running ? '同步服务运行中' : '启动同步服务'),
+        h('div.settings-subtitle', null, syncState.running
+          ? `本机端口 ${syncState.port || 17860}，局域网/手机可发现`
+          : '开启后手机可在"局域网设备"中看到本机')
+      ),
+      h('button.btn.btn-outline', { style: { padding: '4px 12px', fontSize: 12 }, onClick: e => { e.stopPropagation(); toggleServer(); } },
+        syncState.running ? '停止' : '启动')
+    ),
+
+    // 发现的 peer
+    syncState.running && syncState.peers && syncState.peers.length > 0 &&
+      h('div', { style: { marginTop: 8, padding: 12, background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' } },
+        h('div', { style: { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 } }, '发现的设备：'),
+        ...syncState.peers.map(peer =>
+          h('div', { key: peer.id, style: { display: 'flex', alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--border)' } },
+            h('div', { style: { flex: 1 } },
+              h('div', { style: { fontSize: 13 } }, peer.name || '未知设备'),
+              h('div', { style: { fontSize: 11, color: 'var(--text-hint)' } }, peer.address || peer.host)
+            ),
+            h('button.btn.btn-primary', {
+              style: { padding: '4px 12px', fontSize: 12 },
+              onClick: () => syncWithPeer(peer),
+              disabled: syncState.busy
+            }, '同步')
+          )
+        )
+      ),
+
+    // 公网 URL 同步
+    h('div', { style: { marginTop: 12, padding: 12, background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' } },
+      h('div', { style: { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 } }, '跨网段/公网同步（手填 URL）：'),
+      h('div', { style: { display: 'flex', gap: 8 } },
+        h('input.input', { style: { flex: 1 }, placeholder: 'https://your-domain.com:17860', value: syncUrl, onChange: e => setSyncUrl(e.target.value) }),
+        h('button.btn.btn-primary', { onClick: syncWithUrl, disabled: syncState.busy || !syncUrl.trim() },
+          syncState.busy ? '同步中...' : '同步')
+      ),
+      syncState.lastResult && h('div', {
+        style: {
+          marginTop: 8, padding: 8, borderRadius: 4, fontSize: 12,
+          background: syncState.lastResult.error ? 'rgba(244,67,54,0.1)' : 'rgba(46,204,113,0.1)',
+          color: syncState.lastResult.error ? 'var(--expense)' : 'var(--income)'
+        }
+      },
+        syncState.lastResult.error
+          ? '同步失败: ' + syncState.lastResult.error
+          : '同步成功: ' + JSON.stringify(syncState.lastResult)
+      )
+    ),
 
     // 账户列表
     h('div', { style: { margin: '20px 0 12px', fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' } }, t('accountMgmt')),
