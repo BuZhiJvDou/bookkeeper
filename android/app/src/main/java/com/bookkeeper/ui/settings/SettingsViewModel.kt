@@ -1,14 +1,17 @@
 package com.bookkeeper.ui.settings
 
+import android.app.Application
 import android.os.Build
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bookkeeper.data.sync.SyncManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -18,8 +21,9 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val app: Application,
     private val syncManager: SyncManager
-) : ViewModel() {
+) : AndroidViewModel(app) {
 
     /** 一次性提示消息（Snackbar 用），消费后置空 */
     private val _message = MutableStateFlow<String?>(null)
@@ -60,6 +64,29 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 重置：删除加密 db 文件 + 关掉 app 让用户重开。
+     * 防止误触：UI 层要求用户输入 "RESET" 二次确认。
+     */
+    fun resetAllData(onDone: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val dbFile = app.getDatabasePath("bookkeeper.db")
+                    for (ext in listOf("", "-shm", "-wal")) {
+                        val f = java.io.File(dbFile.absolutePath + ext)
+                        if (f.exists()) f.delete()
+                    }
+                }
+                _message.value = "已重置，下次启动将重新创建空数据"
+                onDone()
+            } catch (e: Exception) {
+                _message.value = "重置失败: ${e.message}"
+            }
+        }
+    }
+
     fun setMessage(msg: String) { _message.value = msg }
     fun clearMessage() { _message.value = null }
 }
+

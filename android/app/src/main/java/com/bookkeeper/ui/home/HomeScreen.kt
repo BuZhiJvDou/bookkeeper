@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +33,6 @@ import java.util.*
 fun HomeScreen(
     onAddTransaction: () -> Unit,
     onViewAllTransactions: () -> Unit,
-    onTransfer: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -43,11 +41,6 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("记账单", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = onTransfer) {
-                        Icon(Icons.Default.Refresh, contentDescription = "账户转账")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )

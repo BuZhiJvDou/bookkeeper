@@ -103,10 +103,6 @@ ipcMain.handle('transactions:getStats', (event, startDate, endDate) => {
   return db.getTransactionStats(startDate, endDate);
 });
 
-ipcMain.handle('transactions:transfer', (event, data) => {
-  return db.addTransfer(data);
-});
-
 // 分类
 ipcMain.handle('categories:getAll', () => {
   return db.getAllCategories();

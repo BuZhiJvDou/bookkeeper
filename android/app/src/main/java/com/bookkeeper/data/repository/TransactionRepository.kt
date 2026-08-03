@@ -45,6 +45,9 @@ class TransactionRepository @Inject constructor(
     suspend fun getTotalByTypeAndDateRange(type: TransactionType, startDate: Long, endDate: Long): Long =
         transactionDao.getTotalByTypeAndDateRange(type, startDate, endDate) ?: 0L
 
+    fun observeTotalByTypeAndDateRange(type: TransactionType, startDate: Long, endDate: Long): Flow<Long> =
+        transactionDao.observeTotalByTypeAndDateRange(type, startDate, endDate)
+
     suspend fun getCategoryTotals(type: TransactionType, startDate: Long, endDate: Long): List<CategoryTotal> =
         transactionDao.getCategoryTotals(type, startDate, endDate)
 

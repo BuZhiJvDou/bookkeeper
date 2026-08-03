@@ -29,6 +29,10 @@ interface TransactionDao {
     @Query("SELECT SUM(amount) FROM transactions WHERE isDeleted = 0 AND type = :type AND date BETWEEN :startDate AND :endDate")
     suspend fun getTotalByTypeAndDateRange(type: TransactionType, startDate: Long, endDate: Long): Long?
 
+    // 实时观察
+    @Query("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE isDeleted = 0 AND type = :type AND date BETWEEN :startDate AND :endDate")
+    fun observeTotalByTypeAndDateRange(type: TransactionType, startDate: Long, endDate: Long): Flow<Long>
+
     @Query("SELECT SUM(amount) FROM transactions WHERE isDeleted = 0 AND type = :type AND categoryId = :categoryId AND date BETWEEN :startDate AND :endDate")
     suspend fun getTotalByCategoryAndDateRange(type: TransactionType, categoryId: Long, startDate: Long, endDate: Long): Long?
 

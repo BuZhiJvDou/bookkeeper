@@ -204,28 +204,6 @@ function deleteTransaction(id) {
   return db.prepare('UPDATE transactions SET is_deleted = 1, updated_at = ? WHERE id = ?').run(Date.now(), id);
 }
 
-/**
- * 账户间转账。
- * 记一条 TRANSFER 交易，并同步调整两个账户余额：
- * 转出账户 -amount，转入账户 +amount。整个过程用事务保证原子性。
- */
-function addTransfer(tr) {
-  const now = Date.now();
-  const run = db.transaction(() => {
-    const result = db.prepare(`
-      INSERT INTO transactions (type, amount, category_id, account_id, to_account_id, note, date, created_at, updated_at)
-      VALUES ('TRANSFER', ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(tr.amount, tr.categoryId || null, tr.fromAccountId, tr.toAccountId, tr.note || null, tr.date, now, now);
-
-    // 转出账户扣款、转入账户到账
-    db.prepare('UPDATE accounts SET balance = balance - ? WHERE id = ?').run(tr.amount, tr.fromAccountId);
-    db.prepare('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(tr.amount, tr.toAccountId);
-
-    return result.lastInsertRowid;
-  });
-  return run();
-}
-
 // === 循环记账规则 ===
 
 /** 计算下一次执行时间：在当前 next_run 基础上加一个周期 */
@@ -537,7 +515,6 @@ module.exports = {
   addTransaction,
   updateTransaction,
   deleteTransaction,
-  addTransfer,
   getTransactionStats,
   getAllCategories,
   addCategory,
